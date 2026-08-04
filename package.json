@@ -1,0 +1,69 @@
+{
+  "name": "espy-ide",
+  "version": "1.0.0",
+  "description": "ESPY IDE - Offline Block Programming for ESP32/Arduino with Marathi Language Support",
+  "main": "electron/main.js",
+  "author": "ESPY Team",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build-win": "electron-builder --win --x64",
+    "build-win-32": "electron-builder --win --ia32",
+    "build-win-portable": "electron-builder --win --x64 --portable",
+    "build-win-portable-32": "electron-builder --win --ia32 --portable",
+    "build-win-all": "electron-builder --win --x64 --ia32",
+    "build-installer": "electron-builder --win --x64",
+    "build-mac": "electron-builder --mac",
+    "build-linux": "electron-builder --linux",
+    "launcher": "node -e \"console.log('Use Run-App.bat on Windows or Run-App.sh on macOS/Linux')\""
+  },
+  "build": {
+    "appId": "com.espy.ide",
+    "productName": "ESPY IDE",
+    "files": [
+      "**/*",
+      "!projects/**",
+      "!*.md",
+      "!.git/**"
+    ],
+    "asarUnpack": [
+      "backend/**"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/python-3.12.8-embed-amd64",
+        "to": "python-3.12.8-embed-amd64",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ESPY IDE"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.9.0"
+  },
+  "dependencies": {
+    "blockly": "^13.0.0"
+  }
+}

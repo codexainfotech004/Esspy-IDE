@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<!--
+  =============================================
+  ESPY IDE — AI + Block Programming
+  =============================================
+  
+  An AI-based interactive learning and control platform.
+  Train AI models using camera, hand gestures, body pose,
+  face detection, and speech — then control devices with blocks.
+  
+  Author: ESPY Team
+  License: MIT
+-->
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+    content="ESPY IDE — AI-based interactive learning platform with camera AI training, gesture control, speech recognition, and block programming." />
+  <title>ESPY IDE — AI + Block Programming</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Fira+Code:wght@400;500&family=Outfit:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+
+  <!-- Google Blockly Library -->
+  <script src="https://unpkg.com/blockly@11.2.1/blockly_compressed.js"></script>
+  <script src="https://unpkg.com/blockly@11.2.1/blocks_compressed.js"></script>
+  <script src="https://unpkg.com/blockly@11.2.1/msg/en.js"></script>
+
+  <!-- Application Styles -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+  <!-- ==========================================
+       Splash Screen (Loading Animation)
+       ========================================== -->
+  <div class="splash" id="splash">
+    <div class="splash__icon">
+      <div class="splash__brain"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 0-5 5v2a5 5 0 0 0 10 0V7a5 5 0 0 0-5-5z"/><path d="M12 14a5 5 0 0 0-5 5v2a5 5 0 0 0 10 0v-2a5 5 0 0 0-5-5z"/><path d="M7 7h10"/><path d="M7 17h10"/></svg></div>
+      <div class="splash__rings">
+        <div class="splash__ring splash__ring--1"></div>
+        <div class="splash__ring splash__ring--2"></div>
+        <div class="splash__ring splash__ring--3"></div>
+      </div>
+    </div>
+    <div class="splash__title">ESPY IDE</div>
+    <div class="splash__subtitle">AI-Powered Learning & Control Platform</div>
+<div class="splash__subtitle-marathi">एआई-सक्षम शिक्षण आणि नियंत्रण प्लॅटफॉर्म</div>
+    <div class="splash__loader">
+      <div class="splash__loader-bar"></div>
+    </div>
+    <div class="splash__features">
+      <span>Camera AI</span>
+      <span>•</span>
+      <span>Gestures</span>
+      <span>•</span>
+      <span>Body Pose</span>
+      <span>•</span>
+      <span>Face</span>
+      <span>•</span>
+      <span>Voice</span>
+      <span>•</span>
+      <span>Blocks</span>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       Main Application
+       ========================================== -->
+  <div id="app">
+
+    <!-- Header / Toolbar -->
+    <header class="header" id="header">
+      <!-- Logo -->
+      <div class="header__logo">
+        <div class="header__logo-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 0-5 5v2a5 5 0 0 0 10 0V7a5 5 0 0 0-5-5z"/><path d="M12 14a5 5 0 0 0-5 5v2a5 5 0 0 0 10 0v-2a5 5 0 0 0-5-5z"/><path d="M7 7h10"/><path d="M7 17h10"/></svg></div>
+        <div>
+          <div class="header__title">ESPY IDE</div>
+          <div class="header__subtitle">AI + Block Programming</div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="header__actions">
+        <!-- AI Studio Toggle -->
+        <button class="btn btn--ai-studio" id="btnAIStudio" title="Open AI Studio">
+          <span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg></span> AI Studio
+        </button>
+
+        <div class="header__divider"></div>
+
+        <!-- Language Toggle -->
+        <div class="lang-toggle" id="langToggle">
+          <button class="lang-toggle__btn lang-toggle__btn--active" data-lang="en" id="langEn">English</button>
+          <button class="lang-toggle__btn" data-lang="mr" id="langMr">मराठी</button>
+        </div>
+
+        <div class="header__divider"></div>
+
+        <!-- Code Generator Toggle -->
+        <div class="lang-toggle" id="generatorToggle">
+          <button class="lang-toggle__btn lang-toggle__btn--active" id="genMicroPython">MicroPython</button>
+          <button class="lang-toggle__btn" id="genArduino">Arduino C++</button>
+        </div>
+
+        <div class="header__divider"></div>
+
+
+        <!-- File Operations -->
+        <button class="btn" id="btnNew" title="New Project">
+          <span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span> New
+        </button>
+        <button class="btn" id="btnSave" title="Save Project">
+          <span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></span> Save
+        </button>
+        <button class="btn" id="btnOpen" title="Open Project">
+          <span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span> Open
+        </button>
+        <div class="header__divider"></div>
+
+        <!-- Sample Projects Dropdown -->
+        <div class="dropdown">
+          <button class="btn" id="btnExamples" title="Load Sample Projects">
+            <span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span> Examples ▼
+          </button>
+          <div class="dropdown__menu" id="examplesMenu">
+            <div class="dropdown__item" data-example="motor">
+              <span class="dropdown__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+              <div class="dropdown__content">
+                <div class="dropdown__title">DC Motor Control</div>
+                <div class="dropdown__desc">Spin motor forward on Port 1 (GPIO 18, 19)</div>
+              </div>
+            </div>
+            <div class="dropdown__item" data-example="led_blink">
+              <span class="dropdown__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></span>
+              <div class="dropdown__content">
+                <div class="dropdown__title">LED Blink</div>
+                <div class="dropdown__desc">Blink LED with delay</div>
+              </div>
+            </div>
+            <div class="dropdown__item" data-example="servo">
+              <span class="dropdown__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></span>
+              <div class="dropdown__content">
+                <div class="dropdown__title">Servo Motor</div>
+                <div class="dropdown__desc">Rotate servo motor</div>
+              </div>
+            </div>
+            <div class="dropdown__item" data-example="ultrasonic_buzzer">
+              <span class="dropdown__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+              <div class="dropdown__content">
+                <div class="dropdown__title">Ultrasonic Alarm</div>
+                <div class="dropdown__desc">Beep buzzer when object is closer than 20cm</div>
+              </div>
+            </div>
+            <div class="dropdown__item" data-example="line_follower">
+              <span class="dropdown__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><circle cx="12" cy="12" r="3"/></svg></span>
+              <div class="dropdown__content">
+                <div class="dropdown__title">Blix Boffin Line Follower</div>
+                <div class="dropdown__desc">Dual IR sensors line tracking bot with motor control</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="header__divider"></div>
+
+        <!-- Code Actions -->
+        <button class="btn btn--primary" id="btnRun" title="Generate Code">
+          <span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></span> Run
+        </button>
+        <button class="btn btn--success" id="btnUpload" title="Upload to ESP32">
+          <span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span> Upload
+        </button>
+        <button class="btn btn--warning" id="btnSimulate" title="Simulate">
+          <span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span> Simulate
+        </button>
+        <button class="btn btn--line-follower" id="btnLineFollower" title="Blix Boffin Line Follower Bot Mini-Project">
+          <span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span> 🤖 Line Follower Bot
+        </button>
+          <span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span> Simulate
+        </button>
+        <button class="btn btn--info" id="btnSerialMonitor" title="Serial Monitor">
+          <span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span> Serial
+        </button>
+
+        <!-- Port Status / Connection Indicator -->
+        <div class="connection-dropdown">
+          <div class="port-status" id="portStatus" title="Blix Board Connection Status">
+            <span class="port-status__icon" id="portStatusIcon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></span>
+            <span class="port-status__text" id="portStatusText">Not Connected</span>
+          </div>
+          <div class="connection-popover" id="connectionPopover">
+            <div class="connection-popover__header">
+              <span class="connection-popover__title">Blix Board Status</span>
+            </div>
+            <div class="connection-popover__body">
+              <div class="connection-detail">
+                <span class="connection-detail__label">Status:</span>
+                <span class="connection-detail__value" id="popoverStatus" style="color: #ef4444;">Disconnected</span>
+              </div>
+              <div class="connection-detail">
+                <span class="connection-detail__label">Port:</span>
+                <span class="connection-detail__value" id="popoverPort">None</span>
+              </div>
+              <div class="connection-detail" style="margin-top: 8px;">
+                <span class="connection-detail__label">Board Type:</span>
+                <select id="boardTypeSelect" style="background: #0f172a; color: #f8fafc; border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer; outline: none; width: 100%; max-width: 150px; transition: border-color 0.2s;">
+                  <option value="esp32:esp32:esp32">ESP32 Dev Module</option>
+                  <option value="esp32:esp32:esp32s3">ESP32-S3 Dev Module</option>
+                  <option value="esp32:esp32:esp32c3">ESP32-C3 Dev Module</option>
+                  <option value="arduino:avr:uno">Arduino Uno R3</option>
+                </select>
+              </div>
+              <div class="connection-detail" style="margin-top: 8px;">
+                <span class="connection-detail__label">Baud Rate:</span>
+                <select id="baudRateSelect" style="background: #0f172a; color: #f8fafc; border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer; outline: none; width: 100%; max-width: 150px; transition: border-color 0.2s;">
+                  <option value="115200" selected>115200 (Safe)</option>
+                  <option value="230400">230400</option>
+                  <option value="460800">460800</option>
+                  <option value="921600">921600 (Fast)</option>
+                </select>
+              </div>
+            </div>
+            <div class="connection-popover__footer">
+              <button class="btn btn--primary btn--sm" id="btnRescanPort">Scan & Connect</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="header__divider"></div>
+
+        <!-- View toggles -->
+        <button class="btn" id="btnToggleCode" title="Toggle Code Panel">
+          <span class="btn__icon">{ }</span> Code
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content: AI Panel + Workspace + Code Panel -->
+    <div class="main" id="main">
+
+      <!-- ==========================================
+           AI Studio Side Panel
+           ========================================== -->
+      <div class="ai-studio" id="aiStudioPanel">
+        <div class="ai-studio__header">
+          <div class="ai-studio__title">
+            <span class="ai-studio__title-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 0-5 5v2a5 5 0 0 0 10 0V7a5 5 0 0 0-5-5z"/><path d="M12 14a5 5 0 0 0-5 5v2a5 5 0 0 0 10 0v-2a5 5 0 0 0-5-5z"/><path d="M7 7h10"/><path d="M7 17h10"/></svg></span>
+            <span id="aiStudioTitleText">AI Studio</span>
+          </div>
+          <button class="ai-studio__close" id="aiStudioClose" title="Close AI Studio">&times;</button>
+        </div>
+
+        <!-- AI Mode Tabs -->
+        <div class="ai-tabs">
+          <button class="ai-tab ai-tab--active" data-mode="camera" onclick="aiSwitchMode('camera')" id="aiTabCamera">
+            <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span> <span id="aiTabCameraText">Camera AI</span>
+          </button>
+          <button class="ai-tab" data-mode="hand" onclick="aiSwitchMode('hand')" id="aiTabHand">
+            <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg></span> <span id="aiTabHandText">Hand</span>
+          </button>
+          <button class="ai-tab" data-mode="pose" onclick="aiSwitchMode('pose')" id="aiTabPose">
+            <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><path d="M9 20l-1-6"/><path d="M15 20l1-6"/><path d="M12 14v-3"/><path d="M12 5v3"/><path d="M7 10h10"/></svg></span> <span id="aiTabPoseText">Pose</span>
+          </button>
+          <button class="ai-tab" data-mode="face" onclick="aiSwitchMode('face')" id="aiTabFace">
+            <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></span> <span id="aiTabFaceText">Face</span>
+          </button>
+          <button class="ai-tab" data-mode="speech" onclick="aiSwitchMode('speech')" id="aiTabSpeech">
+            <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span> <span id="aiTabSpeechText">Speech</span>
+          </button>
+        </div>
+
+        <!-- Scrollable Content Area -->
+        <div class="ai-studio__scroll">
+
+          <!-- Camera Feed + Canvas -->
+          <div class="ai-camera-container" id="aiCameraContainer">
+            <video id="aiVideoFeed" autoplay playsinline muted></video>
+            <canvas id="aiCanvasOverlay"></canvas>
+            <div class="ai-camera-badge" id="aiCameraBadge">
+              <span class="ai-camera-badge__dot"></span>
+              <span id="aiCameraBadgeText">Camera Off</span>
+            </div>
+          </div>
+
+          <!-- Live Prediction Display -->
+          <div class="ai-prediction-box" id="aiPredictionBox">
+            <div class="ai-prediction-box__header">
+              <span id="aiLivePredTitle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> Live Prediction</span>
+              <span class="ai-prediction-box__confidence" id="aiPredConfidence">—</span>
+            </div>
+            <div class="ai-prediction-box__label" id="aiPredLabel" data-default="No prediction yet">No prediction yet
+            </div>
+            <div class="ai-prediction-box__bars" id="aiPredBars"></div>
+          </div>
+
+          <!-- ============================== -->
+          <!-- MODE-SPECIFIC SECTIONS          -->
+          <!-- ============================== -->
+          <div class="ai-mode-panels">
+
+            <!-- ======= CAMERA AI MODE ======= -->
+            <div class="ai-mode-content ai-mode-content--active" id="aiMode_camera">
+
+              <!-- Section 1: Training Classes -->
+              <div class="ai-section-card">
+                <div class="ai-section-card__header ai-section-card__header--purple">
+                  <span class="ai-section-card__icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>
+                  <span class="ai-section-card__title" id="aiTrainingClassesTitle">Training Classes</span>
+                </div>
+                <div class="ai-section-card__body">
+                  <div class="ai-class-list" id="aiClassList">
+                    <!-- Rendered dynamically -->
+                  </div>
+                  <div class="ai-class-actions">
+                    <button class="btn btn--ai-add" id="aiAddClassBtn" onclick="aiAddClass()">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> <span id="aiAddClassBtnText">Add Class</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section 2: Train & Predict -->
+              <div class="ai-section-card">
+                <div class="ai-section-card__header ai-section-card__header--pink">
+                  <span class="ai-section-card__icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 0-5 5v2a5 5 0 0 0 10 0V7a5 5 0 0 0-5-5z"/><path d="M12 14a5 5 0 0 0-5 5v2a5 5 0 0 0 10 0v-2a5 5 0 0 0-5-5z"/><path d="M7 7h10"/><path d="M7 17h10"/></svg></span>
+                  <span class="ai-section-card__title">Train & Predict</span>
+                </div>
+                <div class="ai-section-card__body">
+                  <div class="ai-train-section">
+                    <button class="btn btn--ai-train" id="aiTrainBtn" onclick="aiTrainModel()">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 0-5 5v2a5 5 0 0 0 10 0V7a5 5 0 0 0-5-5z"/><path d="M12 14a5 5 0 0 0-5 5v2a5 5 0 0 0 10 0v-2a5 5 0 0 0-5-5z"/><path d="M7 7h10"/><path d="M7 17h10"/></svg> Train Model
+                    </button>
+                    <div class="ai-train-actions">
+                      <button class="btn btn--ai-predict" id="aiStartPredBtn" onclick="aiStartPrediction()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> <span id="aiStartPredBtnText">Start Prediction</span>
+                      </button>
+                      <button class="btn" id="aiStopPredBtn" onclick="aiStopPrediction()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> <span id="aiStopPredBtnText">Stop</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- ======= HAND GESTURE MODE ======= -->
+            <div class="ai-mode-content" id="aiMode_hand">
+
+              <div class="ai-section-card">
+                <div class="ai-section-card__header ai-section-card__header--orange">
+                  <span class="ai-section-card__icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg></span>
+                  <span class="ai-section-card__title" id="aiHandTitle">Hand Gesture Detection</span>
+                </div>
+                <div class="ai-section-card__body">
+                  <p class="ai-section-card__desc" id="aiHandDesc">Show your hand to the camera. The AI will detect:</p>
+                  <ul class="ai-feature-list">
+                    <li>
+                      <span class="ai-feature-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg></span>
+                      <span class="ai-feature-label">
+                        <span class="ai-hand-feat" data-key="openHand">Open Hand</span>
+                        <span class="ai-feature-sub">Palm facing camera</span>
+                      </span>
+                    </li>
+                    <li>
+                      <span class="ai-feature-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/></svg></span>
+                      <span class="ai-feature-label">
+                        <span class="ai-hand-feat" data-key="closedFist">Closed Fist</span>
+                        <span class="ai-feature-sub">All fingers closed</span>
+                      </span>
+                    </li>
+                    <li>
+                      <span class="ai-feature-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/></svg></span>
+                      <span class="ai-feature-label">
+                        <span class="ai-hand-feat" data-key="pointingUp">Pointing Up</span>
+                        <span class="ai-feature-sub">Index finger raised</span>
+                      </span>
+                    </li>
+                    <li>
+                      <span class="ai-feature-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-1.3h-7.28l.72-3.6"/></svg></span>
+                      <span class="ai-feature-label">
+                        <span class="ai-hand-feat" data-key="thumbUp">Thumb Up</span>
+                        <span class="ai-feature-sub">Thumbs up gesture</span>
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+                <div class="ai-section-card__footer">
+                  <p class="ai-mode-hint" id="aiHandHint"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> Use gesture blocks to trigger actions!</p>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- ======= POSE DETECTION MODE ======= -->
+            <div class="ai-mode-content" id="aiMode_pose">
+
+              <div class="ai-section-card">
+                <div class="ai-section-card__header ai-section-card__header--green">
+                  <span class="ai-section-card__icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><path d="M9 20l-1-6"/><path d="M15 20l1-6"/><path d="M12 14v-3"/><path d="M12 5v3"/><path d="M7 10h10"/></svg></span>
+                  <span class="ai-section-card__title" id="aiPoseTitle">Body Pose Detection</span>
+                </div>
+                <div class="ai-section-card__body">
+                  <p class="ai-section-card__desc" id="aiPoseDesc">Stand in front of the camera. The AI will detect:</p>
+                  <ul class="ai-feature-list">
+                    <li>
+                      <span class="ai-feature-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v3"/><path d="M12 14v-3"/><path d="M7 10h10"/><path d="M9 20l-1-6"/><path d="M15 20l1-6"/></svg></span>
+                      <span class="ai-feature-label">
+                        <span class="ai-pose-feat" data-key="handsRaised">Hands Raised</span>
+                        <span class="ai-feature-sub">Both hands above head</span>
+                      </span>
+                    </li>
+                    <li>
+                      <span class="ai-feature-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><path d="M4 12h16"/><path d="M12 5v14"/></svg></span>
+                      <span class="ai-feature-label">
+                        <span class="ai-pose-feat" data-key="armsWide">Arms Wide</span>
+                        <span class="ai-feature-sub">Arms stretched sideways</span>
+                      </span>
+                    </li>
+                    <li>
+                      <span class="ai-feature-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
+                      <span class="ai-feature-label">
+                        <span class="ai-pose-feat" data-key="activeMovement">Active Movement</span>
+                        <span class="ai-feature-sub">Body in motion</span>
+                      </span>
+                    </li>
+                    <li>
+                      <span class="ai-feature-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><path d="M12 5v3"/><path d="M12 14v-3"/><path d="M7 10h10"/><path d="M9 20l-1-6"/><path d="M15 20l1-6"/></svg></span>
+                      <span class="ai-feature-label">
+                        <span class="ai-pose-feat" data-key="standingStill">Standing Still</span>
+                        <span class="ai-feature-sub">Minimal movement</span>
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+                <div class="ai-section-card__footer">
+                  <p class="ai-mode-hint" id="aiPoseHint"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> Use pose blocks to control devices!</p>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- ======= FACE DETECTION MODE ======= -->
+            <div class="ai-mode-content" id="aiMode_face">
+
+              <div class="ai-section-card">
+                <div class="ai-section-card__header ai-section-card__header--yellow">
+                  <span class="ai-section-card__icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></span>
+                  <span class="ai-section-card__title" id="aiFaceTitle">Face Detection</span>
+                </div>
+                <div class="ai-section-card__body">
+                  <p class="ai-section-card__desc" id="aiFaceDesc">Look at the camera. The AI will detect:</p>
+                  <ul class="ai-feature-list">
+                    <li>
+                      <span class="ai-feature-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></span>
+                      <span class="ai-feature-label">
+                        <span class="ai-face-feat" data-key="faceForward">Face Forward</span>
+                        <span class="ai-feature-sub">Looking straight ahead</span>
+                      </span>
+                    </li>
+                    <li>
+                      <span class="ai-feature-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/><path d="M12 3a9 9 0 0 0-9 9"/></svg></span>
+                      <span class="ai-feature-label">
+                        <span class="ai-face-feat" data-key="lookingLeft">Looking Left</span>
+                        <span class="ai-feature-sub">Head turned left</span>
+                      </span>
+                    </li>
+                    <li>
+                      <span class="ai-feature-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/><path d="M12 3a9 9 0 0 1 9 9"/></svg></span>
+                      <span class="ai-feature-label">
+                        <span class="ai-face-feat" data-key="lookingRight">Looking Right</span>
+                        <span class="ai-feature-sub">Head turned right</span>
+                      </span>
+                    </li>
+                    <li>
+                      <span class="ai-feature-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></span>
+                      <span class="ai-feature-label">
+                        <span class="ai-face-feat" data-key="smileDetection">Smile Detection</span>
+                        <span class="ai-feature-sub">Smile or neutral</span>
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+                <div class="ai-section-card__footer">
+                  <p class="ai-mode-hint" id="aiFaceHint"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> Use face blocks to trigger smart actions!</p>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- ======= SPEECH RECOGNITION MODE ======= -->
+            <div class="ai-mode-content" id="aiMode_speech">
+
+              <!-- Section 1: Voice Input -->
+              <div class="ai-section-card">
+                <div class="ai-section-card__header ai-section-card__header--blue">
+                  <span class="ai-section-card__icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span>
+                  <span class="ai-section-card__title" id="aiSpeechTitle">Voice Input</span>
+                </div>
+                <div class="ai-section-card__body">
+                  <div class="ai-speech-display">
+                    <div class="ai-speech-wave" id="aiSpeechWave">
+                      <div class="ai-speech-wave__bar"></div>
+                      <div class="ai-speech-wave__bar"></div>
+                      <div class="ai-speech-wave__bar"></div>
+                      <div class="ai-speech-wave__bar"></div>
+                      <div class="ai-speech-wave__bar"></div>
+                    </div>
+                    <div class="ai-speech-text" id="aiSpeechText">Say something...</div>
+                  </div>
+                  <div class="ai-speech-controls">
+                    <button class="btn btn--ai-listen" onclick="aiStartSpeech()" id="aiStartListenBtn">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg> <span id="aiStartListenBtnText">Start Listening</span>
+                    </button>
+                    <button class="btn" onclick="aiStopSpeech()" id="aiStopListenBtn">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> <span id="aiStopListenBtnText">Stop</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section 2: Command History -->
+              <div class="ai-section-card">
+                <div class="ai-section-card__header ai-section-card__header--cyan">
+                  <span class="ai-section-card__icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+                  <span class="ai-section-card__title" id="aiCmdHistoryTitle">Command History</span>
+                </div>
+                <div class="ai-section-card__body">
+                  <div class="ai-speech-history" id="aiSpeechHistory">
+                    <span class="ai-no-samples" id="aiNoCmdsYet">No commands yet</span>
+                  </div>
+                </div>
+                <div class="ai-section-card__footer">
+                  <p class="ai-mode-hint" id="aiSpeechHint"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> Try: "Start", "Stop", "Forward", "Light ON"</p>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
+        <!-- AI Console -->
+        <div class="ai-console">
+          <div class="ai-console__header" id="aiConsoleHeader"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> AI Log</div>
+          <div class="ai-console__body" id="aiConsoleBody"></div>
+        </div>
+      </div>
+
+      <!-- Blockly Workspace -->
+      <div class="workspace-area" id="workspaceArea">
+        <div class="block-search" id="blockSearchContainer">
+          <div class="block-search__input-wrapper">
+            <svg class="block-search__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="M21 21l-4.35-4.35"/>
+            </svg>
+            <input type="text" class="block-search__input" id="blockSearchInput" placeholder="Search blocks..." autocomplete="off" spellcheck="false">
+            <button class="block-search__clear" id="blockSearchClear" title="Clear search" aria-label="Clear search">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div id="blocklyDiv"></div>
+      </div>
+
+      <!-- Code Panel (Right Sidebar) -->
+      <div class="code-panel" id="codePanel">
+        <div class="code-panel__header">
+          <div class="code-panel__title">
+            <span class="code-panel__title-dot"></span>
+            <span id="codePanelTitle">MicroPython Code</span>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button class="btn" id="btnManualCode" title="Manual Coding Mode" style="padding: 4px 10px; font-size: 12px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Manual
+            </button>
+            <button class="btn" id="btnGenerateBlocks" title="Generate Blocks from Code" style="padding: 4px 10px; font-size: 12px; display: none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Generate Blocks
+            </button>
+            <button class="btn" id="btnImportCode" title="Import Code from File" style="padding: 4px 10px; font-size: 12px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Import
+            </button>
+            <span class="lang-badge"
+              style="padding:3px 10px;font-size:11px;background:rgba(34,197,94,0.15);color:#4ade80;border-radius:6px;font-weight:600;letter-spacing:0.5px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              Python</span>
+            <button class="btn" id="btnCopyCode" title="Copy Code" style="padding: 4px 10px; font-size: 12px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy
+            </button>
+          </div>
+        </div>
+        <div class="code-panel__body">
+          <div id="manualCodeHint" style="display:none; padding: 10px; background: rgba(34,197,94,0.1); border-left: 3px solid #4ade80; font-size: 12px; color: #4ade80; margin-bottom: 8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            Manual Mode: Edit code directly. Click "Generate Blocks" to convert code to blocks.
+          </div>
+          <textarea id="codeOutput" readonly spellcheck="false"
+            placeholder="# Generated MicroPython code will appear here...&#10;# Add blocks to the workspace to generate code."></textarea>
+        </div>
+        <div class="code-panel__actions">
+          <button class="btn" id="btnDownloadCode" style="flex:1;">
+            <span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span> Download .py
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Console / Output Area -->
+    <div class="console" id="console">
+      <div class="console__header" id="consoleHeader">
+        <div class="console__title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Console Output
+          <span class="console__badge" id="consoleBadge">0</span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" id="btnClearConsole" style="padding: 2px 8px; font-size: 11px;">Clear</button>
+          <span id="consoleToggleIcon" style="font-size: 14px; color: var(--text-muted);">▼</span>
+        </div>
+      </div>
+      <div class="console__body" id="consoleBody">
+        <!-- Console lines will be added here dynamically -->
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <div class="status-bar__left">
+        <div class="status-bar__item">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">Ready</span>
+        </div>
+        <div class="status-bar__item" id="blockCount">Blocks: 0</div>
+        <div class="status-bar__item" id="aiStatus">
+          <span class="status-dot status-dot--ai" id="aiStatusDot"></span>
+          <span id="aiStatusText">AI: Standby</span>
+        </div>
+      </div>
+      <div class="status-bar__right">
+        <div class="status-bar__item" id="boardInfo">Board: ESP32</div>
+        <div class="status-bar__item">ESPY IDE v2.0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       Simulation Modal
+       ========================================== -->
+  <div class="sim-overlay" id="simOverlay">
+    <div class="sim-panel">
+      <div class="sim-panel__header">
+        <span class="sim-panel__title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> Simulation Mode</span>
+        <button class="sim-panel__close" id="simClose">&times;</button>
+      </div>
+      <div class="sim-panel__body">
+        <!-- Virtual ESP32 Board -->
+        <div class="sim-board">
+          <div class="sim-board__label">ESP32</div>
+          <div class="sim-board__chip">WROOM</div>
+        </div>
+
+        <!-- LED Indicators -->
+        <div class="sim-leds" id="simLeds">
+          <!-- LEDs will be populated dynamically -->
+        </div>
+
+        <!-- Servo Gauge -->
+        <div class="sim-servo" id="simServo" style="display:none;">
+          <div class="sim-servo__gauge">
+            <div class="sim-servo__needle" id="simServoNeedle"></div>
+          </div>
+          <div class="sim-servo__label">Servo: <span id="simServoAngle">0</span>°</div>
+        </div>
+
+        <div style="color: var(--text-muted); font-size: 12px; text-align: center;">
+          Simulation shows virtual output based on your blocks
+        </div>
+
+        <!-- Simulation Controls -->
+        <div style="display:flex; gap:10px; justify-content:center; margin-top:12px;">
+          <button class="btn btn--primary" id="btnStartSim" style="padding:8px 24px; font-size:14px; font-weight:600;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Start Simulation
+          </button>
+          <button class="btn btn--warning" id="btnStopSim"
+            style="padding:8px 24px; font-size:14px; font-weight:600; display:none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Stop
+          </button>
+        </div>
+
+        <!-- Simulation Step Log -->
+        <div id="simLog"
+          style="margin-top:12px; max-height:120px; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:8px; padding:8px 12px; font-family:var(--font-mono); font-size:11px; color:#aaa; display:none;">
+        </div>
+  </div>
+
+  <!-- ==========================================
+       Line Follower Robot Mini-Project Modal
+       ========================================== -->
+  <div class="lf-overlay" id="lineFollowerModal" style="display: none;">
+    <div class="lf-modal">
+      <div class="lf-modal__header">
+        <div class="lf-modal__title">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Blix Boffin Line Follower Robot Mini-Project
+        </div>
+        <button class="lf-modal__close" id="lfCloseBtn">&times;</button>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="lf-tabs">
+        <button class="lf-tab lf-tab--active" data-tab="tab-sim">🏎️ Interactive Track Simulator</button>
+        <button class="lf-tab" data-tab="tab-guide">🔌 Component & Wiring Guide</button>
+        <button class="lf-tab" data-tab="tab-calib">⚙️ IR Calibration & Code Logic</button>
+      </div>
+
+      <div class="lf-modal__body">
+        <!-- Tab 1: Live Interactive Track Simulator -->
+        <div class="lf-tab-content lf-tab-content--active" id="tab-sim">
+          <div class="lf-sim-container">
+            <div class="lf-sim-canvas-wrapper">
+              <canvas id="lfCanvas" width="560" height="380"></canvas>
+              <div class="lf-canvas-badge" id="lfActionBadge">Robot State: IDLE</div>
+            </div>
+
+            <div class="lf-sim-sidebar">
+              <div class="lf-card">
+                <div class="lf-card__title">📡 Live Sensor Telemetry</div>
+                <div class="lf-sensor-grid">
+                  <div class="lf-sensor-box" id="boxSensorLeft">
+                    <span class="lf-sensor-box__label">Left IR (D2)</span>
+                    <span class="lf-sensor-box__val" id="valSensorLeft">WHITE (0)</span>
+                  </div>
+                  <div class="lf-sensor-box" id="boxSensorRight">
+                    <span class="lf-sensor-box__label">Right IR (D3)</span>
+                    <span class="lf-sensor-box__val" id="valSensorRight">WHITE (0)</span>
+                  </div>
+                </div>
+                <div class="lf-motor-status" id="valMotorStatus">Motors: OFF</div>
+              </div>
+
+              <div class="lf-card">
+                <div class="lf-card__title">🎮 Simulation Controls</div>
+                <div class="lf-control-group">
+                  <button class="btn btn--primary" id="btnLfRun">▶ Start Track Run</button>
+                  <button class="btn btn--warning" id="btnLfPause" style="display:none;">⏸ Pause</button>
+                  <button class="btn" id="btnLfReset">🔄 Reset Position</button>
+                </div>
+                <div class="lf-control-field">
+                  <label>Track Pattern:</label>
+                  <select id="lfTrackSelect" class="lf-select">
+                    <option value="oval">Smooth Oval Loop</option>
+                    <option value="figure8">Figure-8 Track</option>
+                    <option value="curves">Sharp S-Curves</option>
+                  </select>
+                </div>
+                <div class="lf-control-field">
+                  <label>Motor Speed:</label>
+                  <input type="range" id="lfSpeedRange" min="1" max="5" value="3">
+                </div>
+              </div>
+
+              <button class="btn btn--success" id="btnLfLoadBlocks" style="width:100%; justify-content:center; font-weight:600; padding: 10px;">
+                🧩 Load Line Follower Blocks into Workspace
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Hardware Component & Wiring Guide -->
+        <div class="lf-tab-content" id="tab-guide">
+          <div class="lf-guide-grid">
+            <div class="lf-guide-card">
+              <h3>🧠 1. Boffin Controller</h3>
+              <p>The main brain board. Digital ports D2 and D3 are connected to the IR Sensors. Motor driver outputs M1 & M2 drive the rear wheels.</p>
+            </div>
+            <div class="lf-guide-card">
+              <h3>📡 2. Dual IR Sensor Modules</h3>
+              <p>Mounted facing downwards (1-2 cm above ground). Detects reflection contrast between black tape and white floor.</p>
+            </div>
+            <div class="lf-guide-card">
+              <h3>⚙️ 3. BO Motors & Motor Driver</h3>
+              <p>Geared DC motors on rear left & right. Caster wheel on front provides 360-degree smooth pivoting motion.</p>
+            </div>
+            <div class="lf-guide-card">
+              <h3>🔋 4. Battery Power Pack</h3>
+              <p>Connects 7.4V/9V battery to controller & motor driver input terminals with correct positive & ground polarity.</p>
+            </div>
+          </div>
+
+          <div class="lf-wiring-table-wrapper">
+            <h3>⚡ Pinout & Connection Summary</h3>
+            <table class="lf-wiring-table">
+              <thead>
+                <tr>
+                  <th>Component</th>
+                  <th>Board Port / Pin</th>
+                  <th>Function</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Left IR Sensor (OUT)</td>
+                  <td>Digital Pin D2 (Port 1 Pin A)</td>
+                  <td>Detects line under left side of chassis</td>
+                </tr>
+                <tr>
+                  <td>Right IR Sensor (OUT)</td>
+                  <td>Digital Pin D3 (Port 2 Pin A)</td>
+                  <td>Detects line under right side of chassis</td>
+                </tr>
+                <tr>
+                  <td>Left BO Motor (M1)</td>
+                  <td>Port 4 (GPIO 27 / 14 or D9 / D8)</td>
+                  <td>Drives left rear wheel</td>
+                </tr>
+                <tr>
+                  <td>Right BO Motor (M2)</td>
+                  <td>Port 5 (GPIO 25 / 26 or D10 / D12)</td>
+                  <td>Drives right rear wheel</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 3: Sensor Calibration & Code Logic -->
+        <div class="lf-tab-content" id="tab-calib">
+          <div class="lf-calib-container">
+            <div class="lf-card">
+              <h3>⚙️ IR Sensor Calibration Tutorial</h3>
+              <ol class="lf-steps-list">
+                <li>Place your Line Follower Robot over the edge of the black electrical tape track.</li>
+                <li>Rotate the small blue potentiometer screw on the IR sensor module using a mini screwdriver.</li>
+                <li>Adjust until the LED indicator on the IR module reliably toggles <strong>ON</strong> when over black tape and <strong>OFF</strong> when over white surface.</li>
+                <li>Test both Left and Right IR sensors to ensure equal sensitivity!</li>
+              </ol>
+
+              <div class="lf-calib-tester">
+                <h4>🧪 Interactive IR Potentiometer Tester</h4>
+                <div class="lf-calib-tester__surface">
+                  <div class="lf-calib-surface-box" id="calibWhiteZone">White Floor</div>
+                  <div class="lf-calib-surface-box lf-calib-surface-box--black" id="calibBlackZone">Black Tape</div>
+                </div>
+                <div class="lf-calib-tester__led" id="calibTestLed">
+                  <span class="lf-led-dot" id="calibLedDot"></span>
+                  <span id="calibLedText">Sensor Signal: LOW (White Surface)</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="lf-card">
+              <h3>🧠 Programming Logic Decision Matrix</h3>
+              <table class="lf-wiring-table">
+                <thead>
+                  <tr>
+                    <th>Left Sensor</th>
+                    <th>Right Sensor</th>
+                    <th>Robot Action</th>
+                    <th>Motor Command</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>WHITE (Off)</td>
+                    <td>WHITE (Off)</td>
+                    <td><span class="lf-tag lf-tag--green">FORWARD</span></td>
+                    <td>Both motors Forward (M1 ON, M2 ON)</td>
+                  </tr>
+                  <tr>
+                    <td>BLACK (Line)</td>
+                    <td>WHITE (Off)</td>
+                    <td><span class="lf-tag lf-tag--blue">TURN LEFT</span></td>
+                    <td>Left motor STOP, Right motor FORWARD</td>
+                  </tr>
+                  <tr>
+                    <td>WHITE (Off)</td>
+                    <td>BLACK (Line)</td>
+                    <td><span class="lf-tag lf-tag--purple">TURN RIGHT</span></td>
+                    <td>Left motor FORWARD, Right motor STOP</td>
+                  </tr>
+                  <tr>
+                    <td>BLACK (Line)</td>
+                    <td>BLACK (Line)</td>
+                    <td><span class="lf-tag lf-tag--red">STOP / INTERSECTION</span></td>
+                    <td>Both motors STOP</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       Upload Progress Modal
+       ========================================== -->
+  <div class="upload-overlay" id="uploadOverlay" style="display: none;">
+    <div class="upload-panel">
+      <div class="upload-panel__header">
+        <span class="upload-panel__title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="upload-panel__title-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          ESP32 Upload Pipeline
+        </span>
+        <button class="upload-panel__close" id="uploadClose" style="display: none;">&times;</button>
+      </div>
+      <div class="upload-panel__body">
+        <div class="upload-steps">
+          <div class="upload-step" id="step-generate">
+            <span class="upload-step__icon"><svg class="spinner" width="16" height="16" viewBox="0 0 50 50"><circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle></svg></span>
+            <span class="upload-step__label">Generating Code...</span>
+          </div>
+          <div class="upload-step" id="step-prepare">
+            <span class="upload-step__icon">⚪</span>
+            <span class="upload-step__label">Preparing Sketch...</span>
+          </div>
+          <div class="upload-step" id="step-compile">
+            <span class="upload-step__icon">⚪</span>
+            <span class="upload-step__label">Compiling...</span>
+          </div>
+          <div class="upload-step" id="step-upload">
+            <span class="upload-step__icon">⚪</span>
+            <span class="upload-step__label">Uploading...</span>
+          </div>
+          <div class="upload-step" id="step-verify">
+            <span class="upload-step__icon">⚪</span>
+            <span class="upload-step__label">Verifying Flash...</span>
+          </div>
+        </div>
+
+        <div class="upload-status-text" id="uploadStatusText">Starting upload...</div>
+
+        <!-- Detailed Upload Logs -->
+        <div class="upload-logs-header" id="uploadLogsHeader">
+          <span>Detailed Output Log</span>
+          <span id="uploadLogsToggle">▲</span>
+        </div>
+        <div class="upload-logs" id="uploadLogs"></div>
+
+        <div class="upload-actions" id="uploadActions" style="display: none;">
+          <button class="btn btn--primary" id="btnUploadClose">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       Serial Monitor Panel
+       ========================================== -->
+  <div class="serial-overlay" id="serialOverlay" style="display: none;">
+    <div class="serial-panel">
+      <div class="serial-panel__header">
+        <span class="serial-panel__title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Serial Monitor
+        </span>
+        <div class="serial-panel__controls">
+          <div class="serial-panel__connection">
+            <span class="serial-panel__status-dot" id="serialStatusDot"></span>
+            <select class="serial-panel__select" id="serialPortSelect">
+              <option value="">Select port...</option>
+            </select>
+            <select class="serial-panel__select" id="serialBaudSelect">
+              <option value="9600">9600</option>
+              <option value="19200">19200</option>
+              <option value="38400">38400</option>
+              <option value="57600">57600</option>
+              <option value="115200" selected>115200</option>
+              <option value="230400">230400</option>
+              <option value="460800">460800</option>
+              <option value="921600">921600</option>
+            </select>
+            <button class="btn btn--primary btn--sm" id="btnSerialConnect">Connect</button>
+            <button class="btn btn--sm" id="btnSerialDisconnect" style="display:none;">Disconnect</button>
+          </div>
+          <button class="serial-panel__close" id="serialClose">&times;</button>
+        </div>
+      </div>
+      <div class="serial-panel__body">
+        <div class="serial-panel__output" id="serialOutput"></div>
+        <div class="serial-panel__input-area">
+          <input type="text" class="serial-panel__input" id="serialInput" placeholder="Type command and press Enter to send..." disabled>
+          <button class="btn btn--primary btn--sm" id="btnSerialSend" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Send
+          </button>
+          <button class="btn btn--sm" id="btnSerialClear" title="Clear output">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            Clear
+          </button>
+          <label class="serial-panel__checkbox-label" title="Auto-scroll to bottom">
+            <input type="checkbox" id="serialAutoScroll" checked>
+            Auto-scroll
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       Toast Container
+       ========================================== -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Hidden file input for opening projects -->
+  <input type="file" id="fileInput" accept=".json,.bbp" style="display: none;" />
+  <input type="file" id="codeInput" accept=".ino,.cpp,.py,.txt" style="display: none;" />
+
+  <!-- ==========================================
+       Blockly Toolbox Definition (XML)
+       ========================================== -->
+  <xml id="toolbox" style="display: none">
+
+    <!-- ====== AI STUDIO ====== -->
+    <category name="AI Camera" colour="#9c27b0">
+      <block type="ai_when_detected">
+        <field name="CLASS_NAME">Class 1</field>
+      </block>
+      <block type="ai_get_prediction"></block>
+      <block type="ai_get_confidence"></block>
+      <block type="ai_start_prediction"></block>
+      <block type="ai_stop_prediction"></block>
+    </category>
+
+    <category name="Hand Gesture" colour="#00bcd4">
+      <block type="ai_when_hand"></block>
+      <block type="ai_get_hand_gesture"></block>
+      <block type="ai_hand_detected"></block>
+    </category>
+
+    <category name="Body Pose" colour="#ff9800">
+      <block type="ai_when_pose"></block>
+      <block type="ai_get_pose"></block>
+    </category>
+
+    <category name="Face" colour="#4caf50">
+      <block type="ai_when_face"></block>
+      <block type="ai_face_detected"></block>
+      <block type="ai_get_face_expression"></block>
+    </category>
+
+    <category name="Speech" colour="#2196f3">
+      <block type="ai_when_speech">
+        <field name="COMMAND">start</field>
+      </block>
+      <block type="ai_get_speech"></block>
+      <block type="ai_start_listening"></block>
+      <block type="ai_stop_listening"></block>
+    </category>
+
+    <category name="AI Control" colour="#e91e63">
+      <block type="ai_control_device">
+        <field name="PIN">2</field>
+      </block>
+      <block type="ai_control_motor"></block>
+      <block type="ai_control_servo">
+        <field name="PIN">13</field>
+        <field name="ANGLE">90</field>
+      </block>
+      <block type="ai_print_result"></block>
+    </category>
+
+    <sep></sep>
+
+    <!-- ====== CONTROL ====== -->
+    <category name="Control" colour="#607d8b">
+      <block type="start_program"></block>
+      <block type="delay_ms">
+        <field name="MS">1000</field>
+      </block>
+      <block type="serial_print"></block>
+      <block type="text_value"></block>
+      <block type="comment_block"></block>
+      <block type="run_once"></block>
+      <block type="break_loop"></block>
+      <block type="continue_loop"></block>
+    </category>
+
+    <!-- ====== GPIO ====== -->
+    <category name="GPIO" colour="#ff5722">
+      <block type="led_on">
+        <field name="PIN">2</field>
+      </block>
+      <block type="led_off">
+        <field name="PIN">2</field>
+      </block>
+      <block type="led_blink">
+        <field name="PIN">2</field>
+        <field name="DELAY">500</field>
+      </block>
+      <block type="digital_write">
+        <field name="PIN">2</field>
+      </block>
+      <block type="pin_mode">
+        <field name="PIN">2</field>
+      </block>
+      <block type="digital_read">
+        <field name="PIN">4</field>
+      </block>
+      <block type="analog_read">
+        <field name="PIN">34</field>
+      </block>
+      <block type="analog_write">
+        <field name="PIN">2</field>
+        <field name="VALUE">128</field>
+      </block>
+    </category>
+
+    <!-- ====== SERVO MOTOR ====== -->
+    <category name="Servo Motor" colour="#4fc3f7">
+      <block type="servo_attach">
+        <field name="PIN">13</field>
+      </block>
+      <block type="servo_control">
+        <field name="PIN">13</field>
+        <field name="ANGLE">90</field>
+      </block>
+      <block type="servo_sweep">
+        <field name="PIN">13</field>
+        <field name="FROM">0</field>
+        <field name="TO">180</field>
+        <field name="SPEED">15</field>
+      </block>
+      <block type="servo_detach">
+        <field name="PIN">13</field>
+      </block>
+    </category>
+
+    <!-- ====== SENSORS ====== -->
+    <category name="Ultrasonic Sensor" colour="#ffd740">
+      <block type="ultrasonic_setup">
+        <field name="TRIG">5</field>
+        <field name="ECHO">18</field>
+      </block>
+      <block type="ultrasonic_read">
+        <field name="TRIG">5</field>
+        <field name="ECHO">18</field>
+      </block>
+    </category>
+
+    <category name="IR Sensor" colour="#ff5252">
+      <block type="ir_read">
+        <field name="PIN">2</field>
+      </block>
+      <block type="ir_detected">
+        <field name="PIN">2</field>
+      </block>
+      <block type="ir_line_detected">
+        <field name="PIN">2</field>
+      </block>
+    </category>
+
+    <category name="DHT Sensor" colour="#69f0ae">
+      <block type="dht_setup">
+        <field name="PIN">4</field>
+      </block>
+      <block type="dht_read_temp">
+        <field name="PIN">4</field>
+      </block>
+      <block type="dht_read_humidity">
+        <field name="PIN">4</field>
+      </block>
+      <block type="dht_heat_index">
+        <field name="PIN">4</field>
+      </block>
+    </category>
+
+    <category name="Touch Sensor" colour="#80deea">
+      <block type="touch_read"></block>
+      <block type="touch_detected"></block>
+    </category>
+
+    <category name="Soil Moisture" colour="#795548">
+      <block type="soil_read">
+        <field name="PIN">34</field>
+      </block>
+      <block type="soil_is_dry">
+        <field name="PIN">34</field>
+        <field name="THRESHOLD">3000</field>
+      </block>
+    </category>
+
+    <category name="Sound Sensor" colour="#ffeb3b">
+      <block type="sound_read">
+        <field name="PIN">35</field>
+      </block>
+      <block type="sound_detected">
+        <field name="PIN">35</field>
+        <field name="THRESHOLD">2000</field>
+      </block>
+      <block type="sound_clap_detected">
+        <field name="PIN">35</field>
+        <field name="THRESHOLD">2500</field>
+      </block>
+    </category>
+
+    <category name="IR Receiver" colour="#e040fb">
+      <block type="ir_receive_setup">
+        <field name="PIN">15</field>
+      </block>
+      <block type="ir_receive_code">
+        <field name="PIN">15</field>
+      </block>
+    </category>
+
+    <category name="Joystick" colour="#ff9e80">
+      <block type="joystick_read_x">
+        <field name="PIN">34</field>
+      </block>
+      <block type="joystick_read_y">
+        <field name="PIN">35</field>
+      </block>
+      <block type="joystick_button">
+        <field name="PIN">32</field>
+      </block>
+    </category>
+
+    <category name="Rotary Encoder">
+      <block type="encoder_setup">
+        <field name="CLK">25</field>
+        <field name="DT">26</field>
+        <field name="SW">27</field>
+      </block>
+      <block type="encoder_read_position"></block>
+      <block type="encoder_button">
+        <field name="SW">27</field>
+      </block>
+    </category>
+
+    <category name="Push Button">
+      <block type="button_pressed">
+        <field name="PIN">4</field>
+      </block>
+      <block type="button_released">
+        <field name="PIN">4</field>
+      </block>
+      <block type="button_long_press">
+        <field name="PIN">4</field>
+        <field name="DURATION">1000</field>
+      </block>
+    </category>
+
+    <!-- ====== ELECTROMAGNET SENSOR ====== -->
+    <category name="Electromagnet" colour="#607d8b">
+      <block type="electromagnet_on">
+        <field name="PIN">25</field>
+      </block>
+      <block type="electromagnet_off">
+        <field name="PIN">25</field>
+      </block>
+      <block type="magnetic_sensor_read">
+        <field name="PIN">34</field>
+      </block>
+      <block type="magnetic_sensor_detected">
+        <field name="PIN">34</field>
+        <field name="THRESHOLD">500</field>
+      </block>
+    </category>
+
+    <!-- ====== OUTPUT ====== -->
+    <category name="Buzzer">
+      <block type="buzzer_on">
+        <field name="PIN">18</field>
+      </block>
+      <block type="buzzer_off">
+        <field name="PIN">18</field>
+      </block>
+      <block type="buzzer_tone">
+        <field name="PIN">18</field>
+        <field name="FREQ">1000</field>
+        <field name="DUR">500</field>
+      </block>
+      <block type="buzzer_note">
+        <field name="PIN">18</field>
+        <field name="DUR">300</field>
+      </block>
+      <block type="buzzer_notone">
+        <field name="PIN">18</field>
+      </block>
+    </category>
+
+    <category name="Relay">
+      <block type="relay_on">
+        <field name="PIN">26</field>
+      </block>
+      <block type="relay_off">
+        <field name="PIN">26</field>
+      </block>
+      <block type="relay_toggle">
+        <field name="PIN">26</field>
+      </block>
+    </category>
+
+    <category name="DC Motor">
+      <block type="motor_forward">
+        <field name="PORT">PORT5</field>
+        <field name="SPEED">200</field>
+      </block>
+      <block type="motor_backward">
+        <field name="PORT">PORT5</field>
+        <field name="SPEED">200</field>
+      </block>
+      <block type="motor_stop">
+        <field name="PORT">PORT5</field>
+      </block>
+    </category>
+
+    <!-- ====== DISPLAY ====== -->
+    <category name="LCD Display">
+      <block type="lcd_setup"></block>
+      <block type="lcd_print"></block>
+      <block type="lcd_clear"></block>
+    </category>
+
+    <!-- ====== COMMUNICATION ====== -->
+    <category name="WiFi">
+      <block type="wifi_connect">
+        <field name="SSID">MyWiFi</field>
+        <field name="PASS">password</field>
+      </block>
+      <block type="wifi_disconnect"></block>
+      <block type="wifi_get_ip"></block>
+      <block type="wifi_is_connected"></block>
+      <block type="wifi_http_get">
+        <field name="URL">http://example.com</field>
+      </block>
+      <block type="wifi_http_post">
+        <field name="URL">http://example.com</field>
+      </block>
+    </category>
+
+    <sep></sep>
+
+    <!-- ====== LOGIC ====== -->
+    <category name="Logic">
+      <block type="if_condition"></block>
+      <block type="comparison"></block>
+      <block type="boolean_value"></block>
+      <block type="logic_operation"></block>
+      <block type="logic_not"></block>
+    </category>
+
+    <!-- ====== LOOPS ====== -->
+    <category name="Loops">
+      <block type="repeat_times">
+        <field name="TIMES">10</field>
+      </block>
+      <block type="while_loop"></block>
+      <block type="for_loop">
+        <field name="VAR">i</field>
+        <field name="FROM">0</field>
+        <field name="TO">10</field>
+        <field name="STEP">1</field>
+      </block>
+      <block type="forever_loop"></block>
+      <block type="break_loop"></block>
+      <block type="continue_loop"></block>
+    </category>
+
+    <!-- ====== VARIABLES ====== -->
+    <category name="Variables">
+      <block type="set_variable"></block>
+      <block type="get_variable"></block>
+    </category>
+
+    <!-- ====== MATH ====== -->
+    <category name="Math">
+      <block type="math_number"></block>
+      <block type="math_operation"></block>
+      <block type="math_random">
+        <field name="MIN">0</field>
+        <field name="MAX">100</field>
+      </block>
+      <block type="math_min"></block>
+      <block type="math_max"></block>
+      <block type="math_abs"></block>
+      <block type="math_round"></block>
+      <block type="math_floor"></block>
+      <block type="math_ceil"></block>
+      <block type="math_sqrt"></block>
+      <block type="math_pow"></block>
+      <block type="math_sin"></block>
+      <block type="math_cos"></block>
+      <block type="math_tan"></block>
+      <block type="map_value"></block>
+      <block type="code_snippet"></block>
+    </category>
+  </xml>
+
+  <!-- ==========================================
+       Scripts (order matters!)
+       ========================================== -->
+  <!-- Custom block definitions -->
+  <script src="blocks/custom_blocks.js"></script>
+  <!-- AI block definitions -->
+  <script src="ai/ai_blocks.js"></script>
+  <!-- Code generators -->
+  <script src="generator/arduino_generator.js"></script>
+  <script src="generator/micropython_generator.js"></script>
+  <!-- AI Studio engine -->
+  <script src="ai/ai_studio.js"></script>
+  <!-- Main application logic -->
+  <script src="script.js"></script>
+
+</body>
+
+</html>
