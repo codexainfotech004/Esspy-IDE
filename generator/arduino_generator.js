@@ -170,7 +170,7 @@ arduinoGenerator.forBlock['serial_print'] = function (block, generator) {
 
 arduinoGenerator.forBlock['text_value'] = function (block, generator) {
     const text = block.getFieldValue('TEXT');
-    return [`"${text}"`, generator.ORDER_ATOMIC];
+    return [JSON.stringify(text), generator.ORDER_ATOMIC];
 };
 
 arduinoGenerator.forBlock['comment_block'] = function (block) {
@@ -716,9 +716,11 @@ arduinoGenerator.forBlock['for_loop'] = function (block, generator) {
     const varName = block.getFieldValue('VAR');
     const from = block.getFieldValue('FROM');
     const to = block.getFieldValue('TO');
-    const step = block.getFieldValue('STEP');
+    const rawStep = Number(block.getFieldValue('STEP'));
+    const step = rawStep === 0 ? 1 : rawStep;
+    const comparison = step > 0 ? '<=' : '>=';
     const doCode = generator.statementToCode(block, 'DO');
-    return `for (int ${varName} = ${from}; ${varName} <= ${to}; ${varName} += ${step}) {\n${doCode || ''}}\n`;
+    return `for (int ${varName} = ${from}; ${varName} ${comparison} ${to}; ${varName} += ${step}) {\n${doCode || ''}}\n`;
 };
 
 
@@ -748,7 +750,13 @@ arduinoGenerator.forBlock['math_number_value'] = function (block, generator) {
 arduinoGenerator.forBlock['math_number'] = arduinoGenerator.forBlock['math_number_value'];
 
 arduinoGenerator.forBlock['math_operation'] = function (block, generator) {
-    const opMap = { 'ADD': '+', 'SUB': '-', 'MUL': '*', 'DIV': '/', 'MOD': '%' };
+    const opMap = {
+        'ADD': '+',
+        'MINUS': '-', 'SUB': '-',
+        'MULTIPLY': '*', 'MUL': '*',
+        'DIVIDE': '/', 'DIV': '/',
+        'MODULO': '%', 'MOD': '%'
+    };
     const op = opMap[block.getFieldValue('OP')];
     const order = (op === '*' || op === '/' || op === '%')
         ? generator.ORDER_MULTIPLICATIVE : generator.ORDER_ADDITIVE;
@@ -759,10 +767,10 @@ arduinoGenerator.forBlock['math_operation'] = function (block, generator) {
 
 arduinoGenerator.forBlock['map_value'] = function (block, generator) {
     const value = generator.valueToCode(block, 'VALUE', generator.ORDER_ATOMIC) || '0';
-    const fromLow = block.getFieldValue('FROM_LOW');
-    const fromHigh = block.getFieldValue('FROM_HIGH');
-    const toLow = block.getFieldValue('TO_LOW');
-    const toHigh = block.getFieldValue('TO_HIGH');
+    const fromLow = block.getFieldValue('IN_MIN');
+    const fromHigh = block.getFieldValue('IN_MAX');
+    const toLow = block.getFieldValue('OUT_MIN');
+    const toHigh = block.getFieldValue('OUT_MAX');
     return [`map(${value}, ${fromLow}, ${fromHigh}, ${toLow}, ${toHigh})`, generator.ORDER_ATOMIC];
 };
 
@@ -1034,18 +1042,37 @@ arduinoGenerator.forBlock['wifi_disconnect'] = function (block, generator) {
 };
 
 arduinoGenerator.forBlock['wifi_http_get'] = function (block, generator) {
-    const url = block.getFieldValue('URL');
+    const url = JSON.stringify(block.getFieldValue('URL') || '');
     generator.includes_['wifi'] = '#include <WiFi.h>';
     generator.includes_['http'] = '#include <HTTPClient.h>';
-    return `// HTTP GET to ${url}\nHTTPClient http;\nhttp.begin("${url}");\nint httpCode = http.GET();\nString payload = http.getString();\nhttp.end();\n`;
+    generator.functions_['http_get'] = `
+String httpGet(const char* url) {
+  HTTPClient http;
+  http.begin(url);
+  http.GET();
+  String payload = http.getString();
+  http.end();
+  return payload;
+}`;
+    return [`httpGet(${url})`, generator.ORDER_ATOMIC];
 };
 
 arduinoGenerator.forBlock['wifi_http_post'] = function (block, generator) {
-    const url = block.getFieldValue('URL');
+    const url = JSON.stringify(block.getFieldValue('URL') || '');
     const data = generator.valueToCode(block, 'DATA', generator.ORDER_ATOMIC) || '""';
     generator.includes_['wifi'] = '#include <WiFi.h>';
     generator.includes_['http'] = '#include <HTTPClient.h>';
-    return `// HTTP POST to ${url}\nHTTPClient http;\nhttp.begin("${url}");\nhttp.addHeader("Content-Type", "application/json");\nint httpCode = http.POST(${data});\nString payload = http.getString();\nhttp.end();\n`;
+    generator.functions_['http_post'] = `
+String httpPost(const char* url, const String& data) {
+  HTTPClient http;
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+  http.POST(data);
+  String payload = http.getString();
+  http.end();
+  return payload;
+}`;
+    return [`httpPost(${url}, ${data})`, generator.ORDER_ATOMIC];
 };
 
 
@@ -1227,3 +1254,31 @@ arduinoGenerator['ai_control_device'] = function(block) { return '// control dev
 arduinoGenerator['ai_control_motor'] = function(block) { return '// control motor\n'; };
 arduinoGenerator['ai_control_servo'] = function(block) { return '// control servo\n'; };
 arduinoGenerator['ai_print_result'] = function(block) { return '// print AI result\n'; };
+
+
+// ==========================================
+// ELECTROMAGNET & MAGNETIC SENSOR GENERATORS
+// ==========================================
+
+arduinoGenerator.forBlock['electromagnet_on'] = function (block, generator) {
+    const pin = block.getFieldValue('PIN');
+    generator.setupCode_[`electromagnet_${pin}`] = `pinMode(${pin}, OUTPUT);`;
+    return `digitalWrite(${pin}, HIGH);  // Electromagnet ON\n`;
+};
+
+arduinoGenerator.forBlock['electromagnet_off'] = function (block, generator) {
+    const pin = block.getFieldValue('PIN');
+    generator.setupCode_[`electromagnet_${pin}`] = `pinMode(${pin}, OUTPUT);`;
+    return `digitalWrite(${pin}, LOW);  // Electromagnet OFF\n`;
+};
+
+arduinoGenerator.forBlock['magnetic_sensor_read'] = function (block, generator) {
+    const pin = block.getFieldValue('PIN');
+    return [`analogRead(${pin})  /* Magnetic sensor */`, generator.ORDER_ATOMIC];
+};
+
+arduinoGenerator.forBlock['magnetic_sensor_detected'] = function (block, generator) {
+    const pin = block.getFieldValue('PIN');
+    const threshold = block.getFieldValue('THRESHOLD');
+    return [`(analogRead(${pin}) > ${threshold})  /* Magnet detected? */`, generator.ORDER_RELATIONAL];
+};

@@ -142,7 +142,24 @@ micropythonGenerator.forBlock['serial_print'] = function (block, generator) {
 
 micropythonGenerator.forBlock['text_value'] = function (block, generator) {
     const text = block.getFieldValue('TEXT');
-    return [`"${text}"`, generator.ORDER_ATOMIC];
+    return [JSON.stringify(text), generator.ORDER_ATOMIC];
+};
+
+micropythonGenerator.forBlock['comment_block'] = function (block) {
+    const text = String(block.getFieldValue('TEXT') || '').replace(/\r?\n/g, ' ');
+    return `# ${text.replace(/^\s*\/\/\s?/, '')}\n`;
+};
+
+micropythonGenerator.forBlock['run_once'] = function (block, generator) {
+    return generator.statementToCode(block, 'DO');
+};
+
+micropythonGenerator.forBlock['break_loop'] = function () {
+    return 'break\n';
+};
+
+micropythonGenerator.forBlock['continue_loop'] = function () {
+    return 'continue\n';
 };
 
 
@@ -277,6 +294,20 @@ def servo_write(pin_num, angle):
     code += `    servo_write(${pin}, angle)\n`;
     code += `    time.sleep_ms(${speed})\n`;
     return code;
+};
+
+micropythonGenerator.forBlock['servo_attach'] = function (block, generator) {
+    const pin = block.getFieldValue('PIN');
+    generator.imports_['machine'] = 'from machine import Pin, PWM, ADC, TouchPad';
+    generator.variables_[`servo_${pin}`] = `servo_${pin} = PWM(Pin(${pin}), freq=50)`;
+    return `# Servo attached to pin ${pin}\n`;
+};
+
+micropythonGenerator.forBlock['servo_detach'] = function (block, generator) {
+    const pin = block.getFieldValue('PIN');
+    generator.imports_['machine'] = 'from machine import Pin, PWM, ADC, TouchPad';
+    generator.variables_[`servo_${pin}`] = `servo_${pin} = PWM(Pin(${pin}), freq=50)`;
+    return `servo_${pin}.deinit()  # Detach servo from pin ${pin}\n`;
 };
 
 
@@ -474,6 +505,13 @@ micropythonGenerator.forBlock['relay_off'] = function (block, generator) {
     return `Pin(${pin}, Pin.OUT).value(1)  # Relay OFF (active-low)\n`;
 };
 
+micropythonGenerator.forBlock['relay_toggle'] = function (block, generator) {
+    const pin = block.getFieldValue('PIN');
+    generator.imports_['machine'] = 'from machine import Pin, PWM, ADC, TouchPad';
+    generator.variables_[`relay_${pin}`] = `relay_${pin} = Pin(${pin}, Pin.OUT)`;
+    return `relay_${pin}.value(0 if relay_${pin}.value() else 1)  # Toggle relay\n`;
+};
+
 
 // ==========================================
 // DC MOTOR BLOCK GENERATORS (L298N/L293D)
@@ -601,6 +639,25 @@ def read_humidity_${pin}():
     return [`read_humidity_${pin}()`, generator.ORDER_ATOMIC];
 };
 
+micropythonGenerator.forBlock['dht_heat_index'] = function (block, generator) {
+    const pin = block.getFieldValue('PIN');
+    generator.imports_['machine'] = 'from machine import Pin, PWM, ADC, TouchPad';
+    generator.imports_['dht'] = 'import dht';
+
+    generator.functions_[`heat_index_${pin}`] = `
+def heat_index_${pin}():
+    dht_${pin}.measure()
+    t = dht_${pin}.temperature()
+    h = dht_${pin}.humidity()
+    return (-8.78469475556 + 1.61139411 * t + 2.33854883889 * h
+            - 0.14611605 * t * h - 0.012308094 * t * t
+            - 0.0164248277778 * h * h + 0.002211732 * t * t * h
+            + 0.00072546 * t * h * h - 0.000003582 * t * t * h * h)
+`;
+
+    return [`heat_index_${pin}()`, generator.ORDER_ATOMIC];
+};
+
 
 // ==========================================
 // ESP32 TOUCH SENSOR GENERATORS
@@ -713,6 +770,23 @@ micropythonGenerator.forBlock['forever_loop'] = function (block, generator) {
     return `while True:\n${doCode || '    pass\n'}`;
 };
 
+micropythonGenerator.forBlock['while_loop'] = function (block, generator) {
+    const condition = generator.valueToCode(block, 'CONDITION', generator.ORDER_NONE) || 'True';
+    const doCode = generator.statementToCode(block, 'DO');
+    return `while ${condition}:\n${doCode || '    pass\n'}`;
+};
+
+micropythonGenerator.forBlock['for_loop'] = function (block, generator) {
+    const varName = block.getFieldValue('VAR') || 'i';
+    const from = Number(block.getFieldValue('FROM'));
+    const to = Number(block.getFieldValue('TO'));
+    const rawStep = Number(block.getFieldValue('STEP'));
+    const step = rawStep === 0 ? 1 : rawStep;
+    const stop = step > 0 ? to + 1 : to - 1;
+    const doCode = generator.statementToCode(block, 'DO');
+    return `for ${varName} in range(${from}, ${stop}, ${step}):\n${doCode || '    pass\n'}`;
+};
+
 
 // ==========================================
 // VARIABLE BLOCK GENERATORS
@@ -739,7 +813,13 @@ micropythonGenerator.forBlock['math_number_value'] = function (block, generator)
 micropythonGenerator.forBlock['math_number'] = micropythonGenerator.forBlock['math_number_value'];
 
 micropythonGenerator.forBlock['math_operation'] = function (block, generator) {
-    const opMap = { 'ADD': '+', 'SUB': '-', 'MUL': '*', 'DIV': '/', 'MOD': '%' };
+    const opMap = {
+        'ADD': '+',
+        'MINUS': '-', 'SUB': '-',
+        'MULTIPLY': '*', 'MUL': '*',
+        'DIVIDE': '/', 'DIV': '/',
+        'MODULO': '%', 'MOD': '%'
+    };
     const op = opMap[block.getFieldValue('OP')];
     const order = (op === '*' || op === '/' || op === '%')
         ? generator.ORDER_MULTIPLICATIVE : generator.ORDER_ADDITIVE;
@@ -750,10 +830,10 @@ micropythonGenerator.forBlock['math_operation'] = function (block, generator) {
 
 micropythonGenerator.forBlock['map_value'] = function (block, generator) {
     const value = generator.valueToCode(block, 'VALUE', generator.ORDER_ATOMIC) || '0';
-    const fromLow = block.getFieldValue('FROM_LOW');
-    const fromHigh = block.getFieldValue('FROM_HIGH');
-    const toLow = block.getFieldValue('TO_LOW');
-    const toHigh = block.getFieldValue('TO_HIGH');
+    const fromLow = block.getFieldValue('IN_MIN');
+    const fromHigh = block.getFieldValue('IN_MAX');
+    const toLow = block.getFieldValue('OUT_MIN');
+    const toHigh = block.getFieldValue('OUT_MAX');
 
     generator.functions_['map_value'] = `
 # Map value from one range to another
@@ -763,6 +843,65 @@ def map_value(x, in_min, in_max, out_min, out_max):
 
     return [`map_value(${value}, ${fromLow}, ${fromHigh}, ${toLow}, ${toHigh})`, generator.ORDER_ATOMIC];
 };
+
+micropythonGenerator.forBlock['math_random'] = function (block, generator) {
+    const min = block.getFieldValue('MIN');
+    const max = block.getFieldValue('MAX');
+    generator.imports_['random'] = 'import random';
+    return [`random.randint(${min}, ${max})`, generator.ORDER_ATOMIC];
+};
+
+micropythonGenerator.forBlock['math_min'] = function (block, generator) {
+    const a = generator.valueToCode(block, 'A', generator.ORDER_NONE) || '0';
+    const b = generator.valueToCode(block, 'B', generator.ORDER_NONE) || '0';
+    return [`min(${a}, ${b})`, generator.ORDER_ATOMIC];
+};
+
+micropythonGenerator.forBlock['math_max'] = function (block, generator) {
+    const a = generator.valueToCode(block, 'A', generator.ORDER_NONE) || '0';
+    const b = generator.valueToCode(block, 'B', generator.ORDER_NONE) || '0';
+    return [`max(${a}, ${b})`, generator.ORDER_ATOMIC];
+};
+
+micropythonGenerator.forBlock['math_abs'] = function (block, generator) {
+    const value = generator.valueToCode(block, 'NUM', generator.ORDER_NONE) || '0';
+    return [`abs(${value})`, generator.ORDER_ATOMIC];
+};
+
+micropythonGenerator.forBlock['math_round'] = function (block, generator) {
+    const value = generator.valueToCode(block, 'NUM', generator.ORDER_NONE) || '0';
+    return [`round(${value})`, generator.ORDER_ATOMIC];
+};
+
+for (const [blockType, functionName] of [
+    ['math_floor', 'floor'],
+    ['math_ceil', 'ceil'],
+    ['math_sqrt', 'sqrt'],
+]) {
+    micropythonGenerator.forBlock[blockType] = function (block, generator) {
+        const value = generator.valueToCode(block, 'NUM', generator.ORDER_NONE) || '0';
+        generator.imports_['math'] = 'import math';
+        return [`math.${functionName}(${value})`, generator.ORDER_ATOMIC];
+    };
+}
+
+micropythonGenerator.forBlock['math_pow'] = function (block, generator) {
+    const base = generator.valueToCode(block, 'BASE', generator.ORDER_NONE) || '0';
+    const exponent = generator.valueToCode(block, 'EXP', generator.ORDER_NONE) || '0';
+    return [`pow(${base}, ${exponent})`, generator.ORDER_ATOMIC];
+};
+
+for (const [blockType, functionName] of [
+    ['math_sin', 'sin'],
+    ['math_cos', 'cos'],
+    ['math_tan', 'tan'],
+]) {
+    micropythonGenerator.forBlock[blockType] = function (block, generator) {
+        const degrees = generator.valueToCode(block, 'DEG', generator.ORDER_NONE) || '0';
+        generator.imports_['math'] = 'import math';
+        return [`math.${functionName}(math.radians(${degrees}))`, generator.ORDER_ATOMIC];
+    };
+}
 
 micropythonGenerator.forBlock['code_snippet'] = function (block) {
     const code = block.getFieldValue('CODE');
@@ -994,6 +1133,41 @@ micropythonGenerator.forBlock['wifi_is_connected'] = function (block, generator)
     generator.imports_['network'] = 'import network';
     generator.variables_['wifi_sta'] = `sta_if = network.WLAN(network.STA_IF)`;
     return [`sta_if.isconnected()  # WiFi connected?`, generator.ORDER_ATOMIC];
+};
+
+micropythonGenerator.forBlock['wifi_disconnect'] = function (block, generator) {
+    generator.imports_['network'] = 'import network';
+    generator.variables_['wifi_sta'] = `sta_if = network.WLAN(network.STA_IF)`;
+    return 'sta_if.disconnect()\nsta_if.active(False)\n';
+};
+
+micropythonGenerator.forBlock['wifi_http_get'] = function (block, generator) {
+    const url = JSON.stringify(block.getFieldValue('URL') || '');
+    generator.imports_['urequests'] = 'import urequests';
+    generator.functions_['http_get'] = `
+def http_get(url):
+    response = urequests.get(url)
+    try:
+        return response.text
+    finally:
+        response.close()
+`;
+    return [`http_get(${url})`, generator.ORDER_ATOMIC];
+};
+
+micropythonGenerator.forBlock['wifi_http_post'] = function (block, generator) {
+    const url = JSON.stringify(block.getFieldValue('URL') || '');
+    const data = generator.valueToCode(block, 'DATA', generator.ORDER_NONE) || '""';
+    generator.imports_['urequests'] = 'import urequests';
+    generator.functions_['http_post'] = `
+def http_post(url, data):
+    response = urequests.post(url, data=data, headers={'Content-Type': 'application/json'})
+    try:
+        return response.text
+    finally:
+        response.close()
+`;
+    return [`http_post(${url}, ${data})`, generator.ORDER_ATOMIC];
 };
 
 

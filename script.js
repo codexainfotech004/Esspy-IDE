@@ -1244,7 +1244,8 @@ async function uploadToESP32() {
     const isMicroPython = currentCodeGenerator === 'micropython';
     const noCode = isMicroPython ? '# No blocks' : '// No blocks';
 
-    if (!code || code.startsWith(noCode) || code.startsWith('// Error generating code')) {
+    const hasGenerationError = code.startsWith('# Error generating code') || code.startsWith('// Error generating code');
+    if (!code || code.startsWith(noCode) || hasGenerationError) {
         showToast('warning', 'Please add valid blocks to generate code before uploading!');
         return;
     }
@@ -4161,4 +4162,3 @@ function initLineFollowerSim() {
         }
     }
 }
-

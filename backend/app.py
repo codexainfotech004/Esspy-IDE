@@ -63,15 +63,16 @@ os.environ['PATH'] = path_separator.join(existing_paths)
 # App Configuration
 # ==========================================
 
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
 app = Flask(__name__, static_folder='..', static_url_path='')
 CORS(app)  # Allow cross-origin requests from frontend
 
 @app.after_request
 def add_header(response):
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
-    response.headers['Cache-Control'] = 'public, max-age=0'
     return response
 
 # Use a user-writable directory for projects (avoid Program Files permission issues)
@@ -82,8 +83,12 @@ else:
     PROJECTS_DIR = os.path.join(os.path.expanduser('~'), '.bharatblocks', 'projects')
 os.makedirs(PROJECTS_DIR, exist_ok=True)
 
-# Locate mpremote binary
-MPREMOTE_PATH = shutil.which('mpremote') or shutil.which('mpremote.exe') or os.path.expanduser('~/Library/Python/3.9/bin/mpremote')
+# Locate mpremote binary (or use module via bundled python -m mpremote)
+_mpremote_fallback = os.path.expanduser('~/Library/Python/3.9/bin/mpremote')
+MPREMOTE_PATH = shutil.which('mpremote') or shutil.which('mpremote.exe')
+if not MPREMOTE_PATH and os.path.isfile(_mpremote_fallback):
+    MPREMOTE_PATH = _mpremote_fallback
+MPREMOTE_CMD = [MPREMOTE_PATH] if MPREMOTE_PATH else [sys.executable, '-m', 'mpremote']
 
 # Locate arduino-cli binary
 ARDUINO_CLI_PATH = shutil.which('arduino-cli') or shutil.which('arduino-cli.exe') or os.path.expanduser('~/bin/arduino-cli')
@@ -164,7 +169,30 @@ def detect_esp32_port():
 
 DEFAULT_PORT = detect_esp32_port()
 
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+def _project_path(filename, add_extension=False):
+    """Return a safe path inside PROJECTS_DIR for a .bbp project file."""
+    if not isinstance(filename, str):
+        raise ValueError('Project name must be a string')
+
+    filename = filename.strip()
+    if add_extension and filename and not filename.lower().endswith('.bbp'):
+        filename += '.bbp'
+
+    if not filename or filename.lower() == '.bbp':
+        raise ValueError('Project name cannot be empty')
+    if not filename.lower().endswith('.bbp'):
+        raise ValueError('Project filename must end with .bbp')
+    if any(char in filename for char in ('/', '\\', '\x00')):
+        raise ValueError('Project name cannot contain path separators')
+    if any(ord(char) < 32 for char in filename):
+        raise ValueError('Project name contains invalid characters')
+
+    projects_root = os.path.abspath(PROJECTS_DIR)
+    filepath = os.path.abspath(os.path.join(projects_root, filename))
+    if os.path.commonpath((projects_root, filepath)) != projects_root:
+        raise ValueError('Invalid project path')
+    return filepath
 
 # ==========================================
 # Routes: Frontend Serving
@@ -173,13 +201,13 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 @app.route('/')
 def serve_frontend():
     """Serve the main index.html file"""
-    return send_from_directory('..', 'index.html')
+    return send_from_directory(PROJECT_ROOT, 'index.html')
 
 
 @app.route('/favicon.ico')
 def favicon():
     """Redirect favicon.ico to favicon.svg"""
-    return send_from_directory('..', 'favicon.svg', mimetype='image/svg+xml')
+    return send_from_directory(PROJECT_ROOT, 'favicon.svg', mimetype='image/svg+xml')
 
 
 # ==========================================
@@ -206,9 +234,9 @@ def save_project():
     }
     """
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
         
-        if not data or 'workspace' not in data:
+        if not isinstance(data, dict) or 'workspace' not in data:
             return jsonify({'success': False, 'error': 'Invalid project data'}), 400
         
         # Create project object
@@ -221,8 +249,8 @@ def save_project():
         }
         
         # Save to file
-        filename = f"{project['name']}.bbp"
-        filepath = os.path.join(PROJECTS_DIR, filename)
+        filepath = _project_path(project['name'], add_extension=True)
+        filename = os.path.basename(filepath)
         
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(project, f, indent=2, ensure_ascii=False)
@@ -233,6 +261,8 @@ def save_project():
             'filename': filename,
         })
     
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -247,7 +277,7 @@ def load_project(filename):
     Response: The project JSON data
     """
     try:
-        filepath = os.path.join(PROJECTS_DIR, filename)
+        filepath = _project_path(filename)
         
         if not os.path.exists(filepath):
             return jsonify({'success': False, 'error': 'Project not found'}), 404
@@ -260,6 +290,8 @@ def load_project(filename):
             'project': project,
         })
     
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -292,7 +324,7 @@ def list_projects():
 def delete_project(filename):
     """Delete a project file"""
     try:
-        filepath = os.path.join(PROJECTS_DIR, filename)
+        filepath = _project_path(filename)
         
         if os.path.exists(filepath):
             os.remove(filepath)
@@ -300,6 +332,8 @@ def delete_project(filename):
         else:
             return jsonify({'success': False, 'error': 'File not found'}), 404
     
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -314,6 +348,7 @@ def upload_arduino_to_board():
     Upload Arduino C++ code to ESP32 via Arduino CLI.
     """
     logs = []
+    temp_dir = None
     def log_step(message):
         timestamp = datetime.now().strftime('%H:%M:%S.%f')[:-3]
         logs.append(f"[{timestamp}] {message}")
@@ -322,6 +357,14 @@ def upload_arduino_to_board():
         except UnicodeEncodeError:
             # Fallback for Windows consoles that don't support UTF-8 characters
             print(f"[Upload Audit] {message.encode('ascii', 'replace').decode('ascii')}")
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({
+            'success': False,
+            'error': 'Request body must be a JSON object',
+            'logs': logs,
+        }), 400
 
     # Early check: arduino-cli must be installed
     if not ARDUINO_CLI_PATH or not os.path.isfile(ARDUINO_CLI_PATH):
@@ -338,11 +381,15 @@ def upload_arduino_to_board():
         }), 500
 
     try:
-        data = request.get_json()
         code = data.get('code', '')
         port = data.get('port', '')
         fqbn = data.get('fqbn', '')
         baud_rate = data.get('baud_rate', '115200')
+
+        if not isinstance(code, str):
+            return jsonify({'success': False, 'error': 'Code must be a string', 'logs': logs}), 400
+        if not isinstance(port, str) or not isinstance(fqbn, str):
+            return jsonify({'success': False, 'error': 'Port and FQBN must be strings', 'logs': logs}), 400
 
         log_step("Starting ESP32 upload audit & execution pipeline.")
         log_step(f"Received code size: {len(code)} bytes.")
@@ -512,6 +559,9 @@ def upload_arduino_to_board():
             'error': str(e),
             'logs': logs
         }), 500
+    finally:
+        if temp_dir:
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 @app.route('/api/upload-buzzer-test', methods=['GET'])
@@ -578,8 +628,12 @@ def generate_code():
     }
     """
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({'success': False, 'error': 'Request body must be a JSON object'}), 400
         code = data.get('code', '')
+        if not isinstance(code, str):
+            return jsonify({'success': False, 'error': 'Code must be a string'}), 400
         
         return jsonify({
             'success': True,
@@ -616,16 +670,21 @@ def upload_to_board():
         "output": "mpremote output..."
     }
     """
+    temp_dir = None
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({'success': False, 'error': 'Request body must be a JSON object'}), 400
         code = data.get('code', '')
         port = data.get('port', DEFAULT_PORT)
         
-        if not code:
+        if not isinstance(code, str) or not code:
             return jsonify({
                 'success': False,
-                'error': 'No code provided',
+                'error': 'Code must be a non-empty string',
             }), 400
+        if not isinstance(port, str) or not port:
+            return jsonify({'success': False, 'error': 'Port must be a non-empty string'}), 400
         
         # Create a temporary file for main.py
         temp_dir = tempfile.mkdtemp(prefix='bharatblocks_mp_')
@@ -635,8 +694,7 @@ def upload_to_board():
             f.write(code)
         
         # Step 1: Copy main.py to ESP32 using mpremote
-        upload_cmd = [
-            MPREMOTE_PATH,
+        upload_cmd = MPREMOTE_CMD + [
             'connect', port,
             'cp', main_py_path, ':main.py',
         ]
@@ -666,8 +724,7 @@ def upload_to_board():
             }), 400
         
         # Step 2: Soft-reset the board to run the new code
-        reset_cmd = [
-            MPREMOTE_PATH,
+        reset_cmd = MPREMOTE_CMD + [
             'connect', port,
             'reset',
         ]
@@ -705,6 +762,9 @@ def upload_to_board():
             'success': False,
             'error': str(e),
         }), 500
+    finally:
+        if temp_dir:
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 @app.route('/api/detect-port', methods=['GET'])
@@ -753,19 +813,22 @@ def execute_on_board():
     }
     """
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({'success': False, 'error': 'Request body must be a JSON object'}), 400
         code = data.get('code', '')
         port = data.get('port', DEFAULT_PORT)
         
-        if not code:
+        if not isinstance(code, str) or not code:
             return jsonify({
                 'success': False,
-                'error': 'No code provided',
+                'error': 'Code must be a non-empty string',
             }), 400
+        if not isinstance(port, str) or not port:
+            return jsonify({'success': False, 'error': 'Port must be a non-empty string'}), 400
         
         # Use mpremote exec to run code directly (no file write, no reset)
-        exec_cmd = [
-            MPREMOTE_PATH,
+        exec_cmd = MPREMOTE_CMD + [
             'connect', port,
             'exec', code,
         ]
@@ -781,7 +844,7 @@ def execute_on_board():
             return jsonify({
                 'success': False,
                 'error': f'Execution failed: {exec_result.stderr or exec_result.stdout}',
-                'output': exec_result.stderr + exec_result.stdout,
+                'output': (exec_result.stderr or '') + (exec_result.stdout or ''),
             }), 400
         
         return jsonify({
@@ -823,30 +886,45 @@ _serial_mon = {
 }
 
 def _serial_reader(ser):
-    while _serial_mon.get('running') and ser and ser.is_open:
-        try:
+    import serial
+
+    try:
+        while _serial_mon.get('running') and ser and ser.is_open:
             if ser.in_waiting:
                 raw = ser.read(ser.in_waiting)
                 text = raw.decode('utf-8', errors='replace')
                 with _serial_mon['lock']:
                     _serial_mon['buffer'].append(text)
-        except serial.SerialException:
-            break
-        except Exception:
-            break
-        time.sleep(0.02)
-    try:
-        if ser and ser.is_open:
-            ser.close()
-    except:
+            time.sleep(0.02)
+    except serial.SerialException:
         pass
+    except Exception:
+        pass
+    finally:
+        if ser and ser.is_open:
+            try:
+                ser.close()
+            except Exception:
+                pass
+        if _serial_mon.get('serial') is ser:
+            _serial_mon['running'] = False
+            _serial_mon['serial'] = None
 
 @app.route('/api/serial-monitor/open', methods=['POST'])
 def serial_open():
     import serial
-    data = request.get_json() or {}
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'success': False, 'error': 'Request body must be a JSON object'}), 400
     port = data.get('port', DEFAULT_PORT)
-    baud = int(data.get('baud', 115200))
+    if not isinstance(port, str) or not port:
+        return jsonify({'success': False, 'error': 'Port must be a non-empty string'}), 400
+    try:
+        baud = int(data.get('baud', 115200))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Baud rate must be an integer'}), 400
+    if baud <= 0:
+        return jsonify({'success': False, 'error': 'Baud rate must be positive'}), 400
 
     _serial_mon['running'] = False
     if _serial_mon['reader_thread'] and _serial_mon['reader_thread'].is_alive():
@@ -854,7 +932,7 @@ def serial_open():
     if _serial_mon['serial'] and _serial_mon['serial'].is_open:
         try:
             _serial_mon['serial'].close()
-        except:
+        except Exception:
             pass
     _serial_mon['serial'] = None
     with _serial_mon['lock']:
@@ -909,9 +987,12 @@ def serial_stream():
 
 @app.route('/api/serial-monitor/send', methods=['POST'])
 def serial_send():
-    import serial
-    data = request.get_json() or {}
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'success': False, 'error': 'Request body must be a JSON object'}), 400
     text = data.get('text', '')
+    if not isinstance(text, str):
+        return jsonify({'success': False, 'error': 'Text must be a string'}), 400
     ser = _serial_mon.get('serial')
     if not ser or not ser.is_open:
         return jsonify({'success': False, 'error': 'Not connected'}), 400
@@ -930,7 +1011,7 @@ def serial_close():
     if ser:
         try:
             ser.close()
-        except:
+        except Exception:
             pass
     _serial_mon['serial'] = None
     with _serial_mon['lock']:
@@ -961,10 +1042,15 @@ def voice_command():
     }
     """
     try:
-        data = request.get_json() or {}
-        command = data.get('command', '').strip()
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({'success': False, 'error': 'Request body must be a JSON object'}), 400
+        command = data.get('command', '')
         lang = data.get('lang', 'en')
 
+        if not isinstance(command, str):
+            return jsonify({'success': False, 'error': 'Command must be a string'}), 400
+        command = command.strip()
         if not command:
             return jsonify({'success': False, 'error': 'No command provided'}), 400
 
