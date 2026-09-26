@@ -42,8 +42,9 @@ function createWindow() {
         height: 900,
         minWidth: 1000,
         minHeight: 600,
-        title: 'BharatBlocks IDE',
-        backgroundColor: '#0f0f1a',
+        title: 'ESPD IDE - Block Coding',
+        backgroundColor: '#080810',
+        icon: path.join(__dirname, '..', 'assets', 'icon.png'),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -113,8 +114,8 @@ function createMenu() {
         {
             label: 'Run',
             submenu: [
-                { label: 'Generate Code', accelerator: 'F5', click: () => mainWindow.webContents.executeJavaScript('runCode()') },
-                { label: 'Upload to ESP32', click: () => mainWindow.webContents.executeJavaScript('uploadToESP32()') },
+                { label: 'Generate Arduino Code', accelerator: 'F5', click: () => mainWindow.webContents.executeJavaScript('runCode()') },
+                { label: 'Upload to Arduino', click: () => mainWindow.webContents.executeJavaScript('uploadToArduino()') },
                 { label: 'Simulate', click: () => mainWindow.webContents.executeJavaScript('toggleSimulation()') },
             ],
         },
@@ -122,19 +123,15 @@ function createMenu() {
             label: 'Help',
             submenu: [
                 {
-                    label: 'About BharatBlocks',
+                    label: 'About ESPD IDE',
                     click: () => {
                         dialog.showMessageBox(mainWindow, {
                             type: 'info',
-                            title: 'About BharatBlocks IDE',
-                            message: 'BharatBlocks IDE v1.0',
-                            detail: 'A block-based programming IDE for ESP32/Arduino with Marathi language support.\n\nBuilt with ❤️ in India.',
+                            title: 'About ESPD IDE',
+                            message: 'ESPD IDE - Block Coding',
+                            detail: 'A block-based visual programming environment for Arduino (Uno, Nano, Mega) with C++ generation and direct Arduino CLI upload.',
                         });
                     },
-                },
-                {
-                    label: 'Documentation',
-                    click: () => shell.openExternal('https://github.com/bharatblocks'),
                 },
             ],
         },
@@ -172,36 +169,22 @@ function startBackend() {
     }
 
     try {
-        let pythonCmd;
+        let pythonCmd = 'python';
+        const { execSync } = require('child_process');
         
-        if (process.platform === 'win32') {
-            // On Windows, use bundled Python from resources folder
-            const bundledPython = path.join(process.resourcesPath, 'python-3.12.8-embed-amd64', 'python.exe');
-            
-            if (fs.existsSync(bundledPython)) {
-                pythonCmd = bundledPython;
-                console.log('[Backend] Using bundled Python:', bundledPython);
-            } else {
-                // Fall back to system Python
-                const { execSync } = require('child_process');
-                try {
-                    execSync('python --version', { stdio: 'ignore' });
-                    pythonCmd = 'python';
-                    console.log('[Backend] Using system Python');
-                } catch {
-                    try {
-                        execSync('python3 --version', { stdio: 'ignore' });
-                        pythonCmd = 'python3';
-                        console.log('[Backend] Using system Python3');
-                    } catch {
-                        console.error('[Backend] Python not found. Backend will not start.');
-                        return;
-                    }
-                }
+        try {
+            execSync('python --version', { stdio: 'ignore' });
+            pythonCmd = 'python';
+            console.log('[Backend] Using system Python');
+        } catch {
+            try {
+                execSync('python3 --version', { stdio: 'ignore' });
+                pythonCmd = 'python3';
+                console.log('[Backend] Using system Python3');
+            } catch {
+                console.error('[Backend] Python not found. Backend will not start.');
+                return;
             }
-        } else {
-            // On macOS/Linux, use python3
-            pythonCmd = 'python3';
         }
 
         backendProcess = spawn(pythonCmd, [backendPath], {

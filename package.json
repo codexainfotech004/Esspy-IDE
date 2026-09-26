@@ -1,38 +1,39 @@
 {
-  "name": "espy-ide",
+  "name": "espd-ide",
   "version": "1.0.0",
-  "description": "ESPY IDE - Offline Block Programming for ESP32/Arduino with Marathi Language Support",
+  "description": "ESPD IDE - Visual Block Coding for Arduino Uno / Nano / Mega",
   "main": "electron/main.js",
-  "author": "ESPY Team",
+  "author": "Codexa",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "build-win": "electron-builder --win --x64",
-    "build-win-32": "electron-builder --win --ia32",
-    "build-win-portable": "electron-builder --win --x64 --portable",
-    "build-win-portable-32": "electron-builder --win --ia32 --portable",
-    "build-win-all": "electron-builder --win --x64 --ia32",
-    "build-installer": "electron-builder --win --x64",
-    "build-mac": "electron-builder --mac",
-    "build-linux": "electron-builder --linux",
-    "launcher": "node -e \"console.log('Use Run-App.bat on Windows or Run-App.sh on macOS/Linux')\""
+    "build": "electron-builder --win --x64",
+    "build:dir": "electron-builder --win --x64 --dir",
+    "dist": "electron-builder --win --x64"
   },
   "build": {
-    "appId": "com.espy.ide",
-    "productName": "ESPY IDE",
+    "appId": "com.espd.ide",
+    "productName": "ESPD IDE",
+    "copyright": "Copyright © 2024 Codexa",
+    "icon": "assets/icon.ico",
     "files": [
       "**/*",
       "!projects/**",
       "!*.md",
-      "!.git/**"
+      "!.git/**",
+      "!tests/**",
+      "!**/*.test.js",
+      "!dist/**",
+      "!release/**"
     ],
     "asarUnpack": [
-      "backend/**"
+      "backend/**",
+      "assets/**"
     ],
     "extraResources": [
       {
-        "from": "resources/python-3.12.8-embed-amd64",
-        "to": "python-3.12.8-embed-amd64",
+        "from": "backend/",
+        "to": "backend/",
         "filter": ["**/*"]
       }
     ],
@@ -41,23 +42,34 @@
         {
           "target": "nsis",
           "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
         }
       ],
-      "artifactName": "${productName}-Setup-${version}.${ext}"
+      "icon": "assets/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "ESPY IDE"
+      "shortcutName": "ESPD IDE",
+      "runAfterFinish": true,
+      "installerLanguages": ["en_US"],
+      "include": null
     },
-    "mac": {
-      "target": "dmg"
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
     },
-    "linux": {
-      "target": "AppImage"
-    }
+    "compression": "normal"
   },
   "devDependencies": {
     "electron": "^28.3.3",

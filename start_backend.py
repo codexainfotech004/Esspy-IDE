@@ -9,7 +9,7 @@ import os
 
 script = os.path.join(os.path.dirname(__file__), 'backend', 'app.py')
 
-print("=== ESPY Backend Auto-Restart Wrapper ===")
+print("=== Arduino IDE Backend Auto-Restart Wrapper ===")
 print(f"Watching: {script}")
 print("Press Ctrl+C to stop.\n")
 

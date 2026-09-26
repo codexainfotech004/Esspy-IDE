@@ -1,6 +1,6 @@
 /**
  * =============================================
- * Sarang AI Studio - Main Application Logic
+ *  - Main Application Logic
  * =============================================
  * 
  * This file handles:
@@ -25,8 +25,8 @@
 /** @type {Blockly.WorkspaceSvg} Main Blockly workspace */
 let workspace = null;
 
-/** Current code generator: 'arduino' (default for Blix Boards) or 'micropython' */
-let currentCodeGenerator = localStorage.getItem('currentCodeGenerator') || 'arduino';
+/** Current code generator: 'arduino' */
+let currentCodeGenerator = 'arduino';
 
 /** Console message count */
 let consoleCount = 0;
@@ -40,20 +40,10 @@ let isSimulating = false;
 /** Flag to disable block centering during bulk load/import operations */
 let _disableCentering = false;
 
-/** Current code language: 'python' or 'cpp' */
+/** Current code language: 'cpp' */
 let codeLang = 'cpp';
 
-function _getCodeUiForGenerator(gen) {
-    if (gen === 'micropython') {
-        return {
-            title: 'MicroPython Code',
-            downloadLabel: 'Download .py',
-            placeholder: '# Generated MicroPython code will appear here...\n# Add blocks to the workspace to generate code.',
-            noCodePrefix: '# No blocks',
-            ext: '.py',
-            langName: 'MicroPython',
-        };
-    }
+function _getCodeUiForGenerator() {
     return {
         title: 'Arduino C++ Code',
         downloadLabel: 'Download .ino',
@@ -65,8 +55,8 @@ function _getCodeUiForGenerator(gen) {
 }
 
 function _syncCodeUiToGenerator() {
-    const ui = _getCodeUiForGenerator(currentCodeGenerator);
-    codeLang = currentCodeGenerator === 'micropython' ? 'python' : 'cpp';
+    const ui = _getCodeUiForGenerator();
+    codeLang = 'cpp';
 
     const title = document.getElementById('codePanelTitle');
     const downloadBtn = document.getElementById('btnDownloadCode');
@@ -107,14 +97,13 @@ window.addEventListener('DOMContentLoaded', () => {
             initWorkspace();
             initBlockSearch();
             initEventListeners();
-            initAIStudio();
             initSerialMonitor();
             initBoardSelection();
-            switchCodeGenerator(currentCodeGenerator);
-            detectESP32Port(); // Auto-detect ESP32 board on startup
-            logToConsole('info', 'Sarang AI Studio initialized successfully.');
-            logToConsole('info', 'AI features: Camera, Hand, Pose, Face, Speech');
-            logToConsole('info', 'Ready to create! Drag blocks from the toolbox.');
+            _syncCodeUiToGenerator();
+            detectArduinoPort(); // Auto-detect Arduino board on startup
+            logToConsole('info', 'Arduino IDE Block Coding initialized successfully.');
+            logToConsole('info', 'Target Board: Arduino Uno (ATmega328P)');
+            logToConsole('info', 'Ready to code! Drag blocks from the toolbox.');
         } catch (err) {
             console.error('Initialization error:', err);
         } finally {
@@ -125,7 +114,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => splash.remove(), 500);
             }
         }
-    }, 2000);
+    }, 1500);
 });
 
 // ==========================================
@@ -298,47 +287,67 @@ function initWorkspace() {
  */
 function applyCategoryColors() {
     const categoryColors = {
-        'AI Camera': '#9c27b0',
-        'Hand Gesture': '#00bcd4',
-        'Body Pose': '#ff9800',
-        'Face': '#4caf50',
-        'Speech': '#2196f3',
-        'AI Control': '#e91e63',
-        'Control': '#607d8b',
-        'GPIO': '#ff5722',
-        'Servo Motor': '#4fc3f7',
-        'Ultrasonic Sensor': '#ff5252',
-        'IR Sensor': '#ffd740',
-        'DHT Sensor': '#69f0ae',
-        'Touch Sensor': '#80deea',
-        'Soil Moisture': '#795548',
-        'Sound Sensor': '#ffeb3b',
-        'IR Receiver': '#e040fb',
-        'Joystick': '#ff9e80',
-        'Rotary Encoder': '#b388ff',
-        'Push Button': '#80cbc4',
-        'Buzzer': '#ffab91',
-        'Relay': '#a5d6a7',
-        'DC Motor': '#90caf9',
-        'LCD Display': '#ce93d8',
-        'WiFi': '#fff59d',
-        'Logic': '#f48fb1',
-        'Loops': '#bcaaa4',
-        'Variables': '#c5e1a5',
-        'Math': '#81d4fa'
+        // English Names
+        'Control': '#3b82f6',
+        'GPIO': '#00979C',
+        'Servo Motor': '#06b6d4',
+        'Ultrasonic Sensor': '#f59e0b',
+        'IR Sensor': '#ef4444',
+        'DHT Sensor': '#10b981',
+        'Soil Moisture': '#854d0e',
+        'Sound Sensor': '#eab308',
+        'IR Receiver': '#d946ef',
+        'Joystick': '#f97316',
+        'Rotary Encoder': '#6366f1',
+        'Push Button': '#14b8a6',
+        'Electromagnet': '#64748b',
+        'Buzzer': '#eab308',
+        'Relay': '#8b5cf6',
+        'DC Motor': '#ec4899',
+        'LCD Display': '#0284c7',
+        'Logic': '#14b8a6',
+        'Loops': '#22c55e',
+        'Variables': '#f97316',
+        'Math': '#6366f1',
+
+        // Marathi Names (exact matches so colors never drop on language toggle)
+        'नियंत्रण': '#3b82f6',
+        'सर्वो मोटर': '#06b6d4',
+        'अल्ट्रासोनिक सेन्सर': '#f59e0b',
+        'IR सेन्सर': '#ef4444',
+        'DHT सेन्सर': '#10b981',
+        'माती ओलावा': '#854d0e',
+        'ध्वनी सेन्सर': '#eab308',
+        'IR रिसीव्हर': '#d946ef',
+        'जॉयस्टिक': '#f97316',
+        'रोटरी एनकोडर': '#6366f1',
+        'पुश बटन': '#14b8a6',
+        'इलेक्ट्रोमॅग्नेट': '#64748b',
+        'बझर': '#eab308',
+        'रिले': '#8b5cf6',
+        'DC मोटर': '#ec4899',
+        'LCD डिस्प्ले': '#0284c7',
+        'लॉजिक': '#14b8a6',
+        'लूप्स': '#22c55e',
+        'व्हेरिएबल्स': '#f97316',
+        'गणित': '#6366f1'
     };
 
     const treeRows = document.querySelectorAll('.blocklyTreeRow');
-    treeRows.forEach(row => {
+    const toolboxXml = document.getElementById('toolbox');
+    const catXmlList = toolboxXml ? Array.from(toolboxXml.getElementsByTagName('category')) : [];
+
+    treeRows.forEach((row, idx) => {
         const label = row.querySelector('.blocklyTreeLabel');
-        if (label) {
-            const categoryName = label.textContent.trim();
-            if (categoryColors[categoryName]) {
-                const color = categoryColors[categoryName];
-                row.style.setProperty('--category-color', color);
-                row.classList.add('category-colored');
-                row.dataset.categoryColor = color;
-            }
+        const categoryName = label ? label.textContent.trim() : '';
+        let color = categoryColors[categoryName];
+        if (!color && idx < catXmlList.length) {
+            color = catXmlList[idx].getAttribute('colour');
+        }
+        if (color) {
+            row.style.setProperty('--category-color', color);
+            row.classList.add('category-colored');
+            row.dataset.categoryColor = color;
         }
     });
 }
@@ -465,10 +474,10 @@ function initBlockSearch() {
 }
 
 /**
- * Detect ESP32 board connection
- * Calls backend API to check for connected ESP32 boards
+ * Detect Arduino board connection
+ * Calls backend API to check for connected Arduino boards
  */
-async function detectESP32Port() {
+async function detectArduinoPort() {
     const portStatus = document.getElementById('portStatus');
     const portStatusIcon = document.getElementById('portStatusIcon');
     const portStatusText = document.getElementById('portStatusText');
@@ -481,10 +490,12 @@ async function detectESP32Port() {
 
         if (data.success && data.ports && data.ports.length > 0) {
             const port = data.ports[0];
-            portStatusIcon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>';
-            portStatusText.textContent = port.label;
-            portStatus.classList.add('port-status--connected');
-            portStatus.classList.remove('port-status--disconnected');
+            if (portStatusIcon) portStatusIcon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>';
+            if (portStatusText) portStatusText.textContent = port.label;
+            if (portStatus) {
+                portStatus.classList.add('port-status--connected');
+                portStatus.classList.remove('port-status--disconnected');
+            }
 
             if (popoverStatus) {
                 popoverStatus.textContent = 'Connected';
@@ -492,12 +503,14 @@ async function detectESP32Port() {
             }
             if (popoverPort) popoverPort.textContent = port.address;
 
-            logToConsole('success', `ESP32 board detected: ${port.address}`);
+            logToConsole('success', `Arduino board detected: ${port.address}`);
         } else {
-            portStatusIcon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>';
-            portStatusText.textContent = 'Not Connected';
-            portStatus.classList.add('port-status--disconnected');
-            portStatus.classList.remove('port-status--connected');
+            if (portStatusIcon) portStatusIcon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>';
+            if (portStatusText) portStatusText.textContent = 'Auto-Detect';
+            if (portStatus) {
+                portStatus.classList.add('port-status--disconnected');
+                portStatus.classList.remove('port-status--connected');
+            }
 
             if (popoverStatus) {
                 popoverStatus.textContent = 'Disconnected';
@@ -506,10 +519,12 @@ async function detectESP32Port() {
             if (popoverPort) popoverPort.textContent = 'None';
         }
     } catch (error) {
-        portStatusIcon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>';
-        portStatusText.textContent = 'Backend Offline';
-        portStatus.classList.add('port-status--disconnected');
-        portStatus.classList.remove('port-status--connected');
+        if (portStatusIcon) portStatusIcon.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>';
+        if (portStatusText) portStatusText.textContent = 'Backend Offline';
+        if (portStatus) {
+            portStatus.classList.add('port-status--disconnected');
+            portStatus.classList.remove('port-status--connected');
+        }
 
         if (popoverStatus) {
             popoverStatus.textContent = 'Backend Offline';
@@ -518,6 +533,7 @@ async function detectESP32Port() {
         if (popoverPort) popoverPort.textContent = 'None';
     }
 }
+const detectESP32Port = detectArduinoPort;
 
 /**
  * Add default blocks to the workspace
@@ -583,7 +599,7 @@ function initEventListeners() {
 
     // --- Code Actions ---
     document.getElementById('btnRun').addEventListener('click', runCode);
-    document.getElementById('btnUpload').addEventListener('click', uploadToESP32);
+    document.getElementById('btnUpload').addEventListener('click', uploadToArduino);
     document.getElementById('btnSimulate').addEventListener('click', toggleSimulation);
 
     // --- Upload Modal Actions ---
@@ -611,6 +627,7 @@ function initEventListeners() {
     document.getElementById('btnGenerateBlocks').addEventListener('click', generateBlocksFromCode);
     document.getElementById('btnImportCode').addEventListener('click', () => document.getElementById('codeInput').click());
     document.getElementById('codeInput').addEventListener('change', importCodeFile);
+    initCodeEditor();
 
     // --- Console ---
     document.getElementById('consoleHeader').addEventListener('click', toggleConsole);
@@ -620,36 +637,34 @@ function initEventListeners() {
     document.getElementById('langEn').addEventListener('click', () => switchLanguage('en'));
     document.getElementById('langMr').addEventListener('click', () => switchLanguage('mr'));
 
-    // --- Connection Popover ---
+    // --- Connection Popover (if present) ---
     const portStatusBtn = document.getElementById('portStatus');
     const connectionPopoverPanel = document.getElementById('connectionPopover');
     const btnRescanPortBtn = document.getElementById('btnRescanPort');
     
-    portStatusBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        connectionPopoverPanel.classList.toggle('connection-popover--show');
-        if (connectionPopoverPanel.classList.contains('connection-popover--show')) {
-            detectESP32Port();
-        }
-    });
+    if (portStatusBtn && connectionPopoverPanel) {
+        portStatusBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            connectionPopoverPanel.classList.toggle('connection-popover--show');
+            if (connectionPopoverPanel.classList.contains('connection-popover--show')) {
+                detectArduinoPort();
+            }
+        });
+        
+        document.addEventListener('click', (e) => {
+            if (!portStatusBtn.contains(e.target) && !connectionPopoverPanel.contains(e.target)) {
+                connectionPopoverPanel.classList.remove('connection-popover--show');
+            }
+        });
+    }
     
-    document.addEventListener('click', (e) => {
-        if (!portStatusBtn.contains(e.target) && !connectionPopoverPanel.contains(e.target)) {
-            connectionPopoverPanel.classList.remove('connection-popover--show');
-        }
-    });
-    
-    btnRescanPortBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        detectESP32Port();
-        showToast('info', 'Scanning for Blix Board...');
-    });
-
-    // --- Code Generator Toggle ---
-    const genMicroPythonBtn = document.getElementById('genMicroPython');
-    const genArduinoBtn = document.getElementById('genArduino');
-    if (genMicroPythonBtn) genMicroPythonBtn.addEventListener('click', () => switchCodeGenerator('micropython'));
-    if (genArduinoBtn) genArduinoBtn.addEventListener('click', () => switchCodeGenerator('arduino'));
+    if (btnRescanPortBtn) {
+        btnRescanPortBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            detectArduinoPort();
+            showToast('info', 'Scanning for Arduino Board...');
+        });
+    }
 
     // --- Simulation ---
     document.getElementById('simClose').addEventListener('click', closeSimulation);
@@ -662,28 +677,6 @@ function initEventListeners() {
     // --- Keyboard Shortcuts ---
     document.addEventListener('keydown', handleKeyboard);
 
-    // Code language is always Python (MicroPython)
-
-    // --- AI Studio ---
-    document.getElementById('btnAIStudio').addEventListener('click', () => {
-        const panel = document.getElementById('aiStudioPanel');
-        if (panel.classList.contains('ai-studio--open')) {
-            aiCloseStudio();
-        } else {
-            aiOpenStudio();
-            // Start camera for default mode on first open
-            if (!AIStudio.activeMode) {
-                aiSwitchMode('camera');
-            }
-        }
-        // Resize Blockly after animation
-        setTimeout(() => Blockly.svgResize(workspace), 450);
-    });
-    document.getElementById('aiStudioClose').addEventListener('click', () => {
-        aiCloseStudio();
-        setTimeout(() => Blockly.svgResize(workspace), 450);
-    });
-
     // --- Line Follower Mini-Project ---
     initLineFollowerSim();
 }
@@ -694,42 +687,102 @@ function initEventListeners() {
 
 /**
  * Generate code from the workspace blocks
- * Uses the currently selected code language (Python or C++)
+ * Generates Arduino C++ code
  */
 function generateCode() {
     try {
-        let code;
-        if (currentCodeGenerator === 'micropython') {
-            code = micropythonGenerator.workspaceToCode(workspace);
-            document.getElementById('codeOutput').value = code || '# No blocks in workspace\n# Drag a "Start Program" block to begin!';
-        } else {
-            code = arduinoGenerator.workspaceToCode(workspace);
-            document.getElementById('codeOutput').value = code || '// No blocks in workspace\n// Drag a "Start Program" block to begin!';
-        }
+        const code = arduinoGenerator.workspaceToCode(workspace);
+        document.getElementById('codeOutput').value = code || '// No blocks in workspace\n// Drag a "Program Start" block to begin!';
     } catch (err) {
-        const comment = currentCodeGenerator === 'micropython' ? '#' : '//';
-        document.getElementById('codeOutput').value = `${comment} Error generating code:\n${comment} ` + err.message;
+        document.getElementById('codeOutput').value = `// Error generating code:\n// ` + err.message;
         console.error('Code generation error:', err);
+    }
+    updateCodeLineNumbers();
+}
+
+/**
+ * Update code editor line numbers gutter and counters
+ */
+function updateCodeLineNumbers() {
+    const codeOutput = document.getElementById('codeOutput');
+    const codeGutter = document.getElementById('codeGutter');
+    const lineCountEl = document.getElementById('codeEditorLineCount');
+    const charCountEl = document.getElementById('codeEditorCharCount');
+    if (!codeOutput || !codeGutter) return;
+
+    const text = codeOutput.value || '';
+    const lines = text.split('\n');
+    const lineCount = lines.length;
+
+    let gutterHtml = '';
+    for (let i = 1; i <= lineCount; i++) {
+        gutterHtml += `<div>${i}</div>`;
+    }
+    codeGutter.innerHTML = gutterHtml;
+    codeGutter.scrollTop = codeOutput.scrollTop;
+
+    if (lineCountEl) {
+        lineCountEl.textContent = (currentLang === 'mr' ? 'ओळी: ' : 'Lines: ') + lineCount;
+    }
+    if (charCountEl) {
+        charCountEl.textContent = (currentLang === 'mr' ? 'अक्षरे: ' : 'Chars: ') + text.length;
     }
 }
 
 /**
- * Switch code language — now always MicroPython
+ * Initialize code editor scroll sync, input listeners and tab key indentation
  */
+function initCodeEditor() {
+    const codeOutput = document.getElementById('codeOutput');
+    const codeGutter = document.getElementById('codeGutter');
+    if (!codeOutput) return;
+
+    codeOutput.addEventListener('scroll', () => {
+        if (codeGutter) {
+            codeGutter.scrollTop = codeOutput.scrollTop;
+        }
+    });
+
+    codeOutput.addEventListener('input', () => {
+        updateCodeLineNumbers();
+    });
+
+    codeOutput.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const start = codeOutput.selectionStart;
+            const end = codeOutput.selectionEnd;
+            codeOutput.value = codeOutput.value.substring(0, start) + '  ' + codeOutput.value.substring(end);
+            codeOutput.selectionStart = codeOutput.selectionEnd = start + 2;
+            updateCodeLineNumbers();
+        }
+    });
+
+    updateCodeLineNumbers();
+}
+
+/**
+ * Switch code generator (locked to Arduino C++)
+ */
+function switchCodeGenerator(gen = 'arduino') {
+    currentCodeGenerator = 'arduino';
+    localStorage.setItem('currentCodeGenerator', 'arduino');
+    _syncCodeUiToGenerator();
+    generateCode();
+}
+
 function switchCodeLang(lang) {
-    // Deprecated: kept for backward compatibility.
-    // Use the code-generator toggle (MicroPython / Arduino C++) instead.
     _syncCodeUiToGenerator();
     generateCode();
 }
 
 /**
- * Run button handler - generates and displays code
+ * Run button handler - generates and displays Arduino C++ code
  */
 function runCode() {
     generateCode();
     const code = document.getElementById('codeOutput').value;
-    const noCode = currentCodeGenerator === 'micropython' ? '# No blocks' : '// No blocks';
+    const noCode = '// No blocks';
 
     if (!code || code.startsWith(noCode)) {
         showToast('warning', 'No blocks found! Add blocks to the workspace first.');
@@ -737,8 +790,7 @@ function runCode() {
         return;
     }
 
-    const langName = currentCodeGenerator === 'micropython' ? 'MicroPython' : 'Arduino C++';
-    logToConsole('info', `Generating ${langName} code...`);
+    logToConsole('info', `Generating Arduino C++ code...`);
     logToConsole('success', 'Code generated successfully!');
     logToConsole('info', `Generated ${code.split('\n').length} lines of code.`);
 
@@ -747,7 +799,7 @@ function runCode() {
     codePanel.classList.add('code-panel--open');
     codePanel.classList.remove('code-panel--collapsed');
 
-    showToast('success', 'Code generated successfully!');
+    showToast('success', 'Arduino C++ code generated successfully!');
 }
 
 // ==========================================
@@ -782,14 +834,14 @@ function saveProject() {
         // Serialize workspace state
         const state = blocklyWorkspaceSave(workspace);
 
-        // Create project data (including AI Studio data)
+        // Create project data
         const projectData = {
             name: currentProjectName,
             version: '2.0',
+            target: 'arduino',
             created: new Date().toISOString(),
             language: currentLang,
             workspace: state,
-            aiStudio: typeof aiGetSaveData === 'function' ? aiGetSaveData() : null,
         };
 
         // Convert to JSON and download
@@ -842,11 +894,6 @@ function openProject(event) {
             }
 
             currentProjectName = projectData.name || 'loaded_project';
-
-            // Restore AI Studio data
-            if (projectData.aiStudio && typeof aiLoadSaveData === 'function') {
-                aiLoadSaveData(projectData.aiStudio);
-            }
 
             logToConsole('success', `Project "${currentProjectName}" loaded successfully.`);
             showToast('success', `Project "${currentProjectName}" loaded!`);
@@ -994,130 +1041,270 @@ const SAMPLE_PROJECTS = {
 };
 
 /**
- * Load a sample project into the workspace
- * @param {string} exampleId - The sample project ID (motor, led_blink, servo)
+ * Load an authentic Arduino IDE sample project into the workspace
+ * @param {string} exampleId - The sample project ID
  */
 function loadSampleProject(exampleId) {
-    // Confirm if workspace has existing blocks
     if (workspace.getAllBlocks().length > 1) {
-        if (!confirm(`Load sample project? Current project will be replaced.`)) {
+        if (!confirm(`Load Arduino example? Current workspace will be replaced.`)) {
             return;
         }
     }
 
     _disableCentering = true;
-    // Clear workspace
     workspace.clear();
 
-    // Create blocks without connecting them
     try {
-        if (exampleId === 'motor') {
-            // Start Program
-            const startBlock = workspace.newBlock('start_program');
-            startBlock.initSvg();
-            startBlock.render();
+        const startBlock = workspace.newBlock('start_program');
+        startBlock.initSvg();
+        startBlock.render();
+        startBlock.moveBy(50, 40);
 
-            // Motor Forward with correct pins
-            const motorBlock = workspace.newBlock('motor_forward');
-            motorBlock.setFieldValue(18, 'IN1');
-            motorBlock.setFieldValue(19, 'IN2');
-            motorBlock.setFieldValue(18, 'EN');
-            motorBlock.setFieldValue(200, 'SPEED');
-            motorBlock.initSvg();
-            motorBlock.render();
-
-            // Delay
-            const delayBlock = workspace.newBlock('delay_ms');
-            delayBlock.setFieldValue(2000, 'MS');
-            delayBlock.initSvg();
-            delayBlock.render();
-
-            // Motor Stop
-            const stopBlock = workspace.newBlock('motor_stop');
-            stopBlock.setFieldValue(18, 'IN1');
-            stopBlock.setFieldValue(19, 'IN2');
-            stopBlock.setFieldValue(18, 'EN');
-            stopBlock.initSvg();
-            stopBlock.render();
-
-            currentProjectName = 'dc_motor_control';
-            logToConsole('info', `📚 Loaded DC Motor Control blocks`);
-            logToConsole('info', `   Connect: Start → Motor → Delay → Stop`);
-            showToast('info', 'Blocks loaded - connect them manually');
-        }
-        else if (exampleId === 'led_blink') {
-            const startBlock = workspace.newBlock('start_program');
-            startBlock.initSvg();
-            startBlock.render();
-
+        if (exampleId === 'led_blink') {
+            // 01.Basics: Blink LED on Pin 13
             const ledOn = workspace.newBlock('led_on');
-            ledOn.setFieldValue('2', 'PIN');
+            ledOn.setFieldValue('13', 'PIN');
             ledOn.initSvg();
             ledOn.render();
+            startBlock.getInput('LOOP').connection.connect(ledOn.previousConnection);
 
             const delay1 = workspace.newBlock('delay_ms');
             delay1.setFieldValue(1000, 'MS');
             delay1.initSvg();
             delay1.render();
+            ledOn.nextConnection.connect(delay1.previousConnection);
 
             const ledOff = workspace.newBlock('led_off');
-            ledOff.setFieldValue('2', 'PIN');
+            ledOff.setFieldValue('13', 'PIN');
             ledOff.initSvg();
             ledOff.render();
+            delay1.nextConnection.connect(ledOff.previousConnection);
 
             const delay2 = workspace.newBlock('delay_ms');
             delay2.setFieldValue(1000, 'MS');
             delay2.initSvg();
             delay2.render();
+            ledOff.nextConnection.connect(delay2.previousConnection);
 
-            currentProjectName = 'led_blink';
-            logToConsole('info', `📚 Loaded LED Blink blocks`);
-            showToast('info', 'Blocks loaded - connect them manually');
+            currentProjectName = 'arduino_blink_pin13';
+            logToConsole('info', '💡 Loaded Arduino Example: Blink LED (Pin 13)');
+            showToast('success', 'Loaded Arduino Example: Blink (Pin 13)');
+        }
+        else if (exampleId === 'button_led') {
+            // 01.Basics: Push Button on Pin 2 controls LED on Pin 13
+            const ifBlock = workspace.newBlock('if_condition');
+            ifBlock.initSvg();
+            ifBlock.render();
+            startBlock.getInput('LOOP').connection.connect(ifBlock.previousConnection);
+
+            const readBtn = workspace.newBlock('digital_read');
+            readBtn.setFieldValue('2', 'PIN');
+            readBtn.initSvg();
+            readBtn.render();
+            ifBlock.getInput('CONDITION').connection.connect(readBtn.outputConnection);
+
+            const ledOn = workspace.newBlock('led_on');
+            ledOn.setFieldValue('13', 'PIN');
+            ledOn.initSvg();
+            ledOn.render();
+            ifBlock.getInput('DO').connection.connect(ledOn.previousConnection);
+
+            const ledOff = workspace.newBlock('led_off');
+            ledOff.setFieldValue('13', 'PIN');
+            ledOff.initSvg();
+            ledOff.render();
+            ifBlock.getInput('ELSE').connection.connect(ledOff.previousConnection);
+
+            currentProjectName = 'arduino_button_led';
+            logToConsole('info', '🔘 Loaded Arduino Example: Digital Read Button (Pin 2 -> LED 13)');
+            showToast('success', 'Loaded Arduino Example: Digital Read Button');
+        }
+        else if (exampleId === 'analog_read') {
+            // 02.Analog: Read Potentiometer on Pin A0 to Serial Monitor
+            const printBlock = workspace.newBlock('serial_print');
+            printBlock.initSvg();
+            printBlock.render();
+            startBlock.getInput('LOOP').connection.connect(printBlock.previousConnection);
+
+            const readAnalog = workspace.newBlock('analog_read');
+            readAnalog.setFieldValue('A0', 'PIN');
+            readAnalog.initSvg();
+            readAnalog.render();
+            printBlock.getInput('MSG').connection.connect(readAnalog.outputConnection);
+
+            const delayBlock = workspace.newBlock('delay_ms');
+            delayBlock.setFieldValue(250, 'MS');
+            delayBlock.initSvg();
+            delayBlock.render();
+            printBlock.nextConnection.connect(delayBlock.previousConnection);
+
+            currentProjectName = 'arduino_analog_read_serial';
+            logToConsole('info', '🎛️ Loaded Arduino Example: Analog Read Serial (A0 @ 9600 baud)');
+            showToast('success', 'Loaded Arduino Example: Analog Read Serial');
+        }
+        else if (exampleId === 'led_fade') {
+            // 02.Analog: Fade LED with PWM on Pin 9
+            const pwmOn = workspace.newBlock('analog_write');
+            pwmOn.setFieldValue(9, 'PIN');
+            pwmOn.setFieldValue(150, 'VALUE');
+            pwmOn.initSvg();
+            pwmOn.render();
+            startBlock.getInput('LOOP').connection.connect(pwmOn.previousConnection);
+
+            const delay1 = workspace.newBlock('delay_ms');
+            delay1.setFieldValue(500, 'MS');
+            delay1.initSvg();
+            delay1.render();
+            pwmOn.nextConnection.connect(delay1.previousConnection);
+
+            const pwmOff = workspace.newBlock('analog_write');
+            pwmOff.setFieldValue(9, 'PIN');
+            pwmOff.setFieldValue(20, 'VALUE');
+            pwmOff.initSvg();
+            pwmOff.render();
+            delay1.nextConnection.connect(pwmOff.previousConnection);
+
+            const delay2 = workspace.newBlock('delay_ms');
+            delay2.setFieldValue(500, 'MS');
+            delay2.initSvg();
+            delay2.render();
+            pwmOff.nextConnection.connect(delay2.previousConnection);
+
+            currentProjectName = 'arduino_pwm_fade';
+            logToConsole('info', '✨ Loaded Arduino Example: Fade LED (PWM Pin 9)');
+            showToast('success', 'Loaded Arduino Example: Fade LED');
         }
         else if (exampleId === 'servo') {
-            const startBlock = workspace.newBlock('start_program');
-            startBlock.initSvg();
-            startBlock.render();
-            
+            // 03.Actuators: Rotate Servo on Pin 9
             const attach = workspace.newBlock('servo_attach');
-            attach.setFieldValue(13, 'PIN');
+            attach.setFieldValue(9, 'PIN');
             attach.initSvg();
             attach.render();
+            startBlock.getInput('SETUP').connection.connect(attach.previousConnection);
+
+            const servo0 = workspace.newBlock('servo_write');
+            servo0.setFieldValue(9, 'PIN');
+            servo0.setFieldValue(0, 'ANGLE');
+            servo0.initSvg();
+            servo0.render();
+            startBlock.getInput('LOOP').connection.connect(servo0.previousConnection);
+
+            const delay1 = workspace.newBlock('delay_ms');
+            delay1.setFieldValue(1000, 'MS');
+            delay1.initSvg();
+            delay1.render();
+            servo0.nextConnection.connect(delay1.previousConnection);
 
             const servo90 = workspace.newBlock('servo_write');
-            servo90.setFieldValue(13, 'PIN');
+            servo90.setFieldValue(9, 'PIN');
             servo90.setFieldValue(90, 'ANGLE');
             servo90.initSvg();
             servo90.render();
-
-            const delay1 = workspace.newBlock('delay_ms');
-            delay1.setFieldValue(1000, 'MS');
-            delay1.initSvg();
-            delay1.render();
-
-            const servo180 = workspace.newBlock('servo_write');
-            servo180.setFieldValue(13, 'PIN');
-            servo180.setFieldValue(180, 'ANGLE');
-            servo180.initSvg();
-            servo180.render();
+            delay1.nextConnection.connect(servo90.previousConnection);
 
             const delay2 = workspace.newBlock('delay_ms');
             delay2.setFieldValue(1000, 'MS');
             delay2.initSvg();
             delay2.render();
+            servo90.nextConnection.connect(delay2.previousConnection);
 
-            currentProjectName = 'servo_motor';
-            logToConsole('info', `📚 Loaded Servo Motor blocks`);
-            showToast('info', 'Blocks loaded - connect them manually');
+            const servo180 = workspace.newBlock('servo_write');
+            servo180.setFieldValue(9, 'PIN');
+            servo180.setFieldValue(180, 'ANGLE');
+            servo180.initSvg();
+            servo180.render();
+            delay2.nextConnection.connect(servo180.previousConnection);
+
+            const delay3 = workspace.newBlock('delay_ms');
+            delay3.setFieldValue(1000, 'MS');
+            delay3.initSvg();
+            delay3.render();
+            servo180.nextConnection.connect(delay3.previousConnection);
+
+            currentProjectName = 'arduino_servo_sweep';
+            logToConsole('info', '🦾 Loaded Arduino Example: Servo Sweep (Pin 9)');
+            showToast('success', 'Loaded Arduino Example: Servo Sweep');
         }
-        else if (exampleId === 'ultrasonic_buzzer') {
-            const startBlock = workspace.newBlock('start_program');
-            startBlock.initSvg();
-            startBlock.render();
+        else if (exampleId === 'motor') {
+            // 03.Actuators: DC Motor on Motor 1 (Pins D3, D2)
+            const motorFwd = workspace.newBlock('motor_forward');
+            motorFwd.setFieldValue('MOTOR1', 'PORT');
+            motorFwd.setFieldValue(200, 'SPEED');
+            motorFwd.initSvg();
+            motorFwd.render();
+            startBlock.getInput('LOOP').connection.connect(motorFwd.previousConnection);
 
+            const delay1 = workspace.newBlock('delay_ms');
+            delay1.setFieldValue(2000, 'MS');
+            delay1.initSvg();
+            delay1.render();
+            motorFwd.nextConnection.connect(delay1.previousConnection);
+
+            const motorBack = workspace.newBlock('motor_backward');
+            motorBack.setFieldValue('MOTOR1', 'PORT');
+            motorBack.setFieldValue(200, 'SPEED');
+            motorBack.initSvg();
+            motorBack.render();
+            delay1.nextConnection.connect(motorBack.previousConnection);
+
+            const delay2 = workspace.newBlock('delay_ms');
+            delay2.setFieldValue(2000, 'MS');
+            delay2.initSvg();
+            delay2.render();
+            motorBack.nextConnection.connect(delay2.previousConnection);
+
+            const motorStop = workspace.newBlock('motor_stop');
+            motorStop.setFieldValue('MOTOR1', 'PORT');
+            motorStop.initSvg();
+            motorStop.render();
+            delay2.nextConnection.connect(motorStop.previousConnection);
+
+            const delay3 = workspace.newBlock('delay_ms');
+            delay3.setFieldValue(1000, 'MS');
+            delay3.initSvg();
+            delay3.render();
+            motorStop.nextConnection.connect(delay3.previousConnection);
+
+            currentProjectName = 'arduino_dc_motor';
+            logToConsole('info', '⚙️ Loaded Arduino Example: DC Motor Drive (Pins D3, D2)');
+            showToast('success', 'Loaded Arduino Example: DC Motor Drive');
+        }
+        else if (exampleId === 'ultrasonic_serial') {
+            // 04.Sensors: HC-SR04 Ultrasonic Distance to Serial
             const setupBlock = workspace.newBlock('ultrasonic_setup');
             setupBlock.setFieldValue('12', 'TRIG');
-            setupBlock.setFieldValue('13', 'ECHO');
+            setupBlock.setFieldValue('11', 'ECHO');
+            setupBlock.initSvg();
+            setupBlock.render();
+            startBlock.getInput('SETUP').connection.connect(setupBlock.previousConnection);
+
+            const printBlock = workspace.newBlock('serial_print');
+            printBlock.initSvg();
+            printBlock.render();
+            startBlock.getInput('LOOP').connection.connect(printBlock.previousConnection);
+
+            const readDist = workspace.newBlock('ultrasonic_read');
+            readDist.setFieldValue('12', 'TRIG');
+            readDist.setFieldValue('11', 'ECHO');
+            readDist.initSvg();
+            readDist.render();
+            printBlock.getInput('MSG').connection.connect(readDist.outputConnection);
+
+            const delayBlock = workspace.newBlock('delay_ms');
+            delayBlock.setFieldValue(250, 'MS');
+            delayBlock.initSvg();
+            delayBlock.render();
+            printBlock.nextConnection.connect(delayBlock.previousConnection);
+
+            currentProjectName = 'arduino_ultrasonic_serial';
+            logToConsole('info', '📏 Loaded Arduino Example: HC-SR04 Distance (Trig D12 / Echo D11)');
+            showToast('success', 'Loaded Arduino Example: HC-SR04 Ultrasonic Distance');
+        }
+        else if (exampleId === 'ultrasonic_buzzer') {
+            // 04.Sensors: Ultrasonic Obstacle Buzzer Alarm (Buzzer Pin 8)
+            const setupBlock = workspace.newBlock('ultrasonic_setup');
+            setupBlock.setFieldValue('12', 'TRIG');
+            setupBlock.setFieldValue('11', 'ECHO');
             setupBlock.initSvg();
             setupBlock.render();
             startBlock.getInput('SETUP').connection.connect(setupBlock.previousConnection);
@@ -1135,7 +1322,7 @@ function loadSampleProject(exampleId) {
 
             const readBlock = workspace.newBlock('ultrasonic_read');
             readBlock.setFieldValue('12', 'TRIG');
-            readBlock.setFieldValue('13', 'ECHO');
+            readBlock.setFieldValue('11', 'ECHO');
             readBlock.initSvg();
             readBlock.render();
             compBlock.getInput('A').connection.connect(readBlock.outputConnection);
@@ -1147,19 +1334,19 @@ function loadSampleProject(exampleId) {
             compBlock.getInput('B').connection.connect(numBlock.outputConnection);
 
             const buzzerOnBlock = workspace.newBlock('buzzer_on');
-            buzzerOnBlock.setFieldValue('18', 'PIN');
+            buzzerOnBlock.setFieldValue('8', 'PIN');
             buzzerOnBlock.initSvg();
             buzzerOnBlock.render();
             ifBlock.getInput('DO').connection.connect(buzzerOnBlock.previousConnection);
 
             const delay1Block = workspace.newBlock('delay_ms');
-            delay1Block.setFieldValue(300, 'MS');
+            delay1Block.setFieldValue(200, 'MS');
             delay1Block.initSvg();
             delay1Block.render();
             buzzerOnBlock.nextConnection.connect(delay1Block.previousConnection);
 
             const buzzerOffBlock = workspace.newBlock('buzzer_off');
-            buzzerOffBlock.setFieldValue('18', 'PIN');
+            buzzerOffBlock.setFieldValue('8', 'PIN');
             buzzerOffBlock.initSvg();
             buzzerOffBlock.render();
             delay1Block.nextConnection.connect(buzzerOffBlock.previousConnection);
@@ -1170,14 +1357,76 @@ function loadSampleProject(exampleId) {
             delay2Block.render();
             buzzerOffBlock.nextConnection.connect(delay2Block.previousConnection);
 
-            currentProjectName = 'ultrasonic_alarm';
-            logToConsole('info', `📚 Loaded Ultrasonic Alarm blocks`);
-            logToConsole('info', `   Trig Pin: 12, Echo Pin: 13, Buzzer Pin: 18`);
-            showToast('info', 'Ultrasonic Alarm example loaded successfully!');
+            currentProjectName = 'arduino_ultrasonic_alarm';
+            logToConsole('info', '🚨 Loaded Arduino Example: Obstacle Alarm (Trig D12, Echo D11, Buzzer D8)');
+            showToast('success', 'Loaded Arduino Example: Obstacle Distance Alarm');
         }
         else if (exampleId === 'line_follower') {
             loadLineFollowerBlocks();
+            return;
         }
+        else if (exampleId === 'obstacle_avoidance') {
+            // 05.Robotics: Smart Obstacle Avoidance Car
+            const setupBlock = workspace.newBlock('ultrasonic_setup');
+            setupBlock.setFieldValue('12', 'TRIG');
+            setupBlock.setFieldValue('11', 'ECHO');
+            setupBlock.initSvg();
+            setupBlock.render();
+            startBlock.getInput('SETUP').connection.connect(setupBlock.previousConnection);
+
+            const ifBlock = workspace.newBlock('if_condition');
+            ifBlock.initSvg();
+            ifBlock.render();
+            startBlock.getInput('LOOP').connection.connect(ifBlock.previousConnection);
+
+            const compBlock = workspace.newBlock('comparison');
+            compBlock.setFieldValue('LT', 'OP');
+            compBlock.initSvg();
+            compBlock.render();
+            ifBlock.getInput('CONDITION').connection.connect(compBlock.outputConnection);
+
+            const readBlock = workspace.newBlock('ultrasonic_read');
+            readBlock.setFieldValue('12', 'TRIG');
+            readBlock.setFieldValue('11', 'ECHO');
+            readBlock.initSvg();
+            readBlock.render();
+            compBlock.getInput('A').connection.connect(readBlock.outputConnection);
+
+            const numBlock = workspace.newBlock('math_number');
+            numBlock.setFieldValue(25, 'NUM');
+            numBlock.initSvg();
+            numBlock.render();
+            compBlock.getInput('B').connection.connect(numBlock.outputConnection);
+
+            // Obstacle detected: Reverse & Turn
+            const motorRev = workspace.newBlock('motor_backward');
+            motorRev.setFieldValue('MOTOR1', 'PORT');
+            motorRev.setFieldValue(180, 'SPEED');
+            motorRev.initSvg();
+            motorRev.render();
+            ifBlock.getInput('DO').connection.connect(motorRev.previousConnection);
+
+            const delayRev = workspace.newBlock('delay_ms');
+            delayRev.setFieldValue(600, 'MS');
+            delayRev.initSvg();
+            delayRev.render();
+            motorRev.nextConnection.connect(delayRev.previousConnection);
+
+            // Clear path: Go forward
+            const motorFwd = workspace.newBlock('motor_forward');
+            motorFwd.setFieldValue('MOTOR1', 'PORT');
+            motorFwd.setFieldValue(200, 'SPEED');
+            motorFwd.initSvg();
+            motorFwd.render();
+            ifBlock.getInput('ELSE').connection.connect(motorFwd.previousConnection);
+
+            currentProjectName = 'arduino_obstacle_avoidance';
+            logToConsole('info', '🚗 Loaded Arduino Example: Autonomous Obstacle Avoidance Robot');
+            showToast('success', 'Loaded Arduino Example: Obstacle Avoidance Car');
+        }
+
+        // Generate C++ code immediately
+        generateCode();
     } catch (err) {
         logToConsole('error', `Error loading sample: ${err.message}`);
         showToast('error', 'Failed to load sample project');
@@ -1194,6 +1443,14 @@ function loadSampleProject(exampleId) {
  * Upload generated code to ESP32 via the Flask backend
  * Requires the backend server to be running
  */
+const STEP_PERCENTAGES = {
+    generate: 20,
+    prepare: 40,
+    compile: 65,
+    upload: 85,
+    verify: 100
+};
+
 /**
  * Helper to update the state of a step in the upload progress modal
  */
@@ -1202,20 +1459,36 @@ function setUploadStepState(stepId, state) {
     if (!stepEl) return;
     
     stepEl.classList.remove('upload-step--pending', 'upload-step--active', 'upload-step--success', 'upload-step--failed');
+    stepEl.classList.add(`upload-step--${state}`);
+    
     const iconEl = stepEl.querySelector('.upload-step__icon');
+    const numEl = stepEl.querySelector('.upload-step__num');
+    const progressBar = document.getElementById('uploadProgressBar');
     
     if (state === 'pending') {
-        stepEl.classList.add('upload-step--pending');
-        iconEl.innerHTML = '⚪';
+        if (numEl) numEl.style.display = 'block';
+        if (iconEl) iconEl.innerHTML = '';
     } else if (state === 'active') {
-        stepEl.classList.add('upload-step--active');
-        iconEl.innerHTML = `<svg class="spinner" width="16" height="16" viewBox="0 0 50 50"><circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle></svg>`;
+        if (numEl) numEl.style.display = 'none';
+        if (iconEl) {
+            iconEl.innerHTML = `<svg class="spinner" width="14" height="14" viewBox="0 0 50 50"><circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle></svg>`;
+        }
+        if (progressBar && STEP_PERCENTAGES[stepId]) {
+            progressBar.style.width = (STEP_PERCENTAGES[stepId] - 12) + '%';
+        }
     } else if (state === 'success') {
-        stepEl.classList.add('upload-step--success');
-        iconEl.innerHTML = '✅';
+        if (numEl) numEl.style.display = 'none';
+        if (iconEl) {
+            iconEl.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        }
+        if (progressBar && STEP_PERCENTAGES[stepId]) {
+            progressBar.style.width = STEP_PERCENTAGES[stepId] + '%';
+        }
     } else if (state === 'failed') {
-        stepEl.classList.add('upload-step--failed');
-        iconEl.innerHTML = '❌';
+        if (numEl) numEl.style.display = 'none';
+        if (iconEl) {
+            iconEl.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        }
     }
 }
 
@@ -1234,33 +1507,78 @@ function appendUploadLog(text, type = 'info') {
 }
 
 /**
- * Upload generated code to ESP32 via the Flask backend
+ * Upload generated code to Arduino via the Flask backend
  * Requires the backend server to be running
  */
-async function uploadToESP32() {
-    // 1. Always generate fresh code first
+async function uploadToArduino() {
+    // 1. Always generate fresh Arduino C++ code first
     generateCode();
     const code = document.getElementById('codeOutput').value;
-    const isMicroPython = currentCodeGenerator === 'micropython';
-    const noCode = isMicroPython ? '# No blocks' : '// No blocks';
+    const noCode = '// No blocks';
 
-    const hasGenerationError = code.startsWith('# Error generating code') || code.startsWith('// Error generating code');
+    const hasGenerationError = code.startsWith('// Error generating code') || code.startsWith('# Error generating code');
     if (!code || code.startsWith(noCode) || hasGenerationError) {
-        showToast('warning', 'Please add valid blocks to generate code before uploading!');
+        showToast('warning', currentLang === 'mr' ? 'अपलोड करण्यापूर्वी कृपया वैध ब्लॉक्स जोडा!' : 'Please add valid blocks to generate Arduino code before uploading!');
         return;
     }
 
     // 2. Show the Upload Progress Modal
     const overlay = document.getElementById('uploadOverlay');
     const statusText = document.getElementById('uploadStatusText');
+    const statusDot = document.getElementById('uploadStatusDot');
     const actions = document.getElementById('uploadActions');
     const closeBtn = document.getElementById('uploadClose');
     const logsEl = document.getElementById('uploadLogs');
+    const progressBar = document.getElementById('uploadProgressBar');
+    const btnRetry = document.getElementById('btnUploadRetry');
 
-    overlay.style.display = 'flex';
-    logsEl.innerHTML = '';
-    actions.style.display = 'none';
-    closeBtn.style.display = 'none';
+    if (overlay) overlay.style.display = 'flex';
+    if (logsEl) logsEl.innerHTML = '';
+    if (actions) actions.style.display = 'none';
+    if (closeBtn) closeBtn.style.display = 'none';
+    if (btnRetry) btnRetry.style.display = 'none';
+
+    // Reset progress bar & status dot
+    if (progressBar) progressBar.style.width = '5%';
+    if (statusDot) {
+        statusDot.style.background = '#00979C';
+        statusDot.style.animation = 'dotPulse 1.5s ease-in-out infinite';
+    }
+
+    // Update metadata badges
+    const boardSelect = document.getElementById('boardTypeSelect');
+    const selectedBoardText = boardSelect ? boardSelect.options[boardSelect.selectedIndex]?.text || 'Arduino Uno R3' : 'Arduino Uno R3';
+    const baudSelect = document.getElementById('baudRateSelect');
+    const selectedBaudVal = baudSelect ? baudSelect.value : '9600';
+    
+    const badgeBoard = document.getElementById('uploadBadgeBoard');
+    if (badgeBoard) badgeBoard.textContent = selectedBoardText;
+    const badgeBaud = document.getElementById('uploadBadgeBaud');
+    if (badgeBaud) badgeBaud.textContent = selectedBaudVal + ' bps';
+    const badgePort = document.getElementById('uploadBadgePort');
+    if (badgePort) badgePort.textContent = 'Port: Scanning...';
+
+    // Wire copy logs button
+    const btnCopyLogs = document.getElementById('btnCopyUploadLogs');
+    if (btnCopyLogs) {
+        btnCopyLogs.onclick = () => {
+            const logsText = document.getElementById('uploadLogs')?.innerText || '';
+            navigator.clipboard.writeText(logsText);
+            btnCopyLogs.textContent = 'Copied!';
+            setTimeout(() => { btnCopyLogs.textContent = 'Copy'; }, 1500);
+        };
+    }
+
+    // Wire retry button
+    if (btnRetry) {
+        btnRetry.onclick = () => uploadToArduino();
+    }
+
+    // Wire download button
+    const btnDownload = document.getElementById('btnUploadDownloadIno');
+    if (btnDownload) {
+        btnDownload.onclick = () => downloadCode();
+    }
 
     // Set initial step states
     setUploadStepState('generate', 'active');
@@ -1269,67 +1587,68 @@ async function uploadToESP32() {
     setUploadStepState('upload', 'pending');
     setUploadStepState('verify', 'pending');
 
-    statusText.textContent = 'Generating code from Blockly workspace...';
-    appendUploadLog('>>> Starting ESP32 upload pipeline...', 'info');
-    appendUploadLog(`Selected firmware target: ${isMicroPython ? 'MicroPython' : 'Arduino C++'}`, 'info');
+    if (statusText) statusText.textContent = currentLang === 'mr' ? 'आर्डुइनो C++ कोड तयार करत आहे...' : 'Generating Arduino C++ code...';
+    appendUploadLog('>>> Starting ESPD Arduino upload pipeline...', 'info');
+    appendUploadLog(`Target Board: ${selectedBoardText}`, 'info');
 
-    // Wait a brief moment to show the generation step
-    await new Promise(r => setTimeout(r, 600));
+    await new Promise(r => setTimeout(r, 350));
     setUploadStepState('generate', 'success');
-    appendUploadLog('Code generated successfully from Blockly workspace.', 'success');
+    appendUploadLog('Arduino C++ code generated successfully from Blockly workspace.', 'success');
 
     // Step 2: Preparing Sketch
     setUploadStepState('prepare', 'active');
-    statusText.textContent = 'Preparing sketch directory and temporary files...';
+    if (statusText) statusText.textContent = currentLang === 'mr' ? 'स्केच डिरेक्टरी तयार करत आहे...' : 'Preparing Arduino sketch directory...';
     appendUploadLog('Creating temporary sketch directory...', 'info');
     
+    await new Promise(r => setTimeout(r, 200));
+    setUploadStepState('prepare', 'success');
+
     // Step 3: Compiling
-    if (isMicroPython) {
-        setUploadStepState('prepare', 'success');
-        setUploadStepState('compile', 'success'); // MicroPython doesn't need compilation
-        appendUploadLog('MicroPython target: Skipping compilation step.', 'success');
-    } else {
-        setUploadStepState('prepare', 'success');
-        setUploadStepState('compile', 'active');
-        statusText.textContent = 'Compiling sketch using Arduino CLI... (this may take a minute)';
-        appendUploadLog('Compiling sketch with --clean flag to prevent stale build artifacts...', 'info');
-    }
+    setUploadStepState('compile', 'active');
+    if (statusText) statusText.textContent = currentLang === 'mr' ? 'Arduino CLI वापरून स्केच कंपाइल करत आहे...' : 'Compiling sketch using Arduino CLI...';
+    appendUploadLog('Compiling sketch for Arduino target...', 'info');
 
     try {
-        // Resolve port
+        // Resolve port — always prefer backend auto-detection (which filters Bluetooth ports)
         let detectedPort = 'auto';
-        appendUploadLog('Scanning for connected serial ports...', 'info');
+        appendUploadLog('Checking serial port configuration...', 'info');
         try {
             const portResponse = await fetch('http://localhost:5001/api/detect-port');
             if (portResponse.ok) {
                 const portData = await portResponse.json();
                 if (portData.success && portData.ports && portData.ports.length > 0) {
+                    // Always use the first backend-detected port (Bluetooth already filtered out)
                     detectedPort = portData.ports[0].address;
-                    appendUploadLog(`Detected port: ${portData.ports[0].label}`, 'success');
+                    if (badgePort) badgePort.textContent = `Port: ${detectedPort}`;
+                    appendUploadLog(`Detected port: ${detectedPort}`, 'success');
                 } else {
-                    appendUploadLog('No port detected. Attempting upload on default port.', 'warning');
+                    // Fallback to portSelect dropdown value if backend finds nothing
+                    const dropdownPort = document.getElementById('portSelect')?.value;
+                    if (dropdownPort && dropdownPort !== 'auto') detectedPort = dropdownPort;
+                    if (badgePort) badgePort.textContent = `Port: ${detectedPort}`;
+                    appendUploadLog('No Arduino USB port auto-detected. Using dropdown selection.', 'warning');
                 }
             }
         } catch (e) {
-            appendUploadLog(`Port scan failed: ${e.message}. Using default.`, 'warning');
+            // Fallback to dropdown if backend is unreachable
+            const dropdownPort = document.getElementById('portSelect')?.value;
+            if (dropdownPort && dropdownPort !== 'auto') detectedPort = dropdownPort;
+            if (badgePort) badgePort.textContent = `Port: ${detectedPort}`;
+            appendUploadLog(`Port scan note: ${e.message}`, 'warning');
         }
 
-        const selectedFqbn = document.getElementById('boardTypeSelect')?.value || 'esp32:esp32:esp32';
-        const selectedBaud = document.getElementById('baudRateSelect')?.value || '115200';
+
+        const selectedFqbn = document.getElementById('boardTypeSelect')?.value || 'arduino:avr:uno';
+        const selectedBaud = document.getElementById('baudRateSelect')?.value || '9600';
         appendUploadLog(`Selected board FQBN: ${selectedFqbn}`, 'info');
-        appendUploadLog(`Selected upload speed: ${selectedBaud} bps`, 'info');
+        appendUploadLog(`Selected upload baud rate: ${selectedBaud} bps`, 'info');
         
         const uploadBody = { code: code, port: detectedPort, fqbn: selectedFqbn, baud_rate: selectedBaud };
-        const endpoint = isMicroPython ? '/upload' : '/upload-arduino';
+        const endpoint = '/upload-arduino';
 
-        if (!isMicroPython) {
-            setUploadStepState('upload', 'pending');
-        } else {
-            setUploadStepState('upload', 'active');
-            statusText.textContent = 'Uploading MicroPython code to ESP32...';
-        }
-
-        appendUploadLog(`Sending upload request to backend endpoint: ${endpoint}`, 'info');
+        setUploadStepState('upload', 'pending');
+        appendUploadLog(`Sending compilation and upload request to Arduino CLI...`, 'info');
+        
         const response = await fetch(`http://localhost:5001${endpoint}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1338,55 +1657,72 @@ async function uploadToESP32() {
 
         const result = await response.json();
 
-        // Print backend logs to our UI terminal
+        // Print backend logs to UI terminal
         if (result.logs && Array.isArray(result.logs)) {
             result.logs.forEach(logLine => {
                 let type = 'info';
-                if (logLine.includes('Error') || logLine.includes('failed')) type = 'error';
-                else if (logLine.includes('successful') || logLine.includes('verified')) type = 'success';
+                if (logLine.includes('Error') || logLine.includes('failed') || logLine.includes('FAILED')) type = 'error';
+                else if (logLine.includes('successful') || logLine.includes('verified') || logLine.includes('SUCCESS')) type = 'success';
                 else if (logLine.includes('Warning')) type = 'warning';
                 appendUploadLog(logLine, type);
             });
         }
 
         if (response.ok && result.success) {
-            if (!isMicroPython) {
-                setUploadStepState('compile', 'success');
-                setUploadStepState('upload', 'success');
-                setUploadStepState('verify', result.flash_verified ? 'success' : 'pending');
-            } else {
-                setUploadStepState('upload', 'success');
-                setUploadStepState('verify', 'success');
-            }
+            setUploadStepState('compile', 'success');
+            setUploadStepState('upload', 'success');
+            setUploadStepState('verify', 'success');
 
-            statusText.textContent = 'Upload Successful!';
-            statusText.style.color = '#4ade80';
-            appendUploadLog('>>> Upload pipeline completed successfully!', 'success');
-            showToast('success', 'Code uploaded to ESP32 successfully!');
+            if (statusDot) {
+                statusDot.style.background = '#22c55e';
+                statusDot.style.animation = 'none';
+            }
+            if (progressBar) progressBar.style.width = '100%';
+
+            if (statusText) {
+                statusText.textContent = currentLang === 'mr' ? 'आर्डुइनोवर अपलोड यशस्वी झाले!' : 'Upload to Arduino Successful!';
+                statusText.style.color = '#4ade80';
+            }
+            appendUploadLog('>>> Arduino upload pipeline completed successfully!', 'success');
+            showToast('success', currentLang === 'mr' ? 'कोड यशस्वीरित्या कंपाइल आणि अपलोड झाला!' : 'Code compiled and uploaded to Arduino successfully!');
         } else {
-            throw new Error(result.error || 'Upload failed');
+            throw new Error(result.error || 'Arduino upload failed');
         }
     } catch (err) {
-        // Find where it failed based on active step
-        if (document.getElementById('step-compile').classList.contains('upload-step--active')) {
+        if (document.getElementById('step-compile')?.classList.contains('upload-step--active')) {
             setUploadStepState('compile', 'failed');
         } else {
             setUploadStepState('upload', 'failed');
         }
         setUploadStepState('verify', 'failed');
 
-        statusText.textContent = 'Upload Failed!';
-        statusText.style.color = '#f87171';
+        if (statusDot) {
+            statusDot.style.background = '#ef4444';
+            statusDot.style.animation = 'none';
+        }
+
+        if (statusText) {
+            statusText.textContent = currentLang === 'mr' ? 'आर्डुइनो अपलोड अयशस्वी!' : 'Upload to Arduino Failed!';
+            statusText.style.color = '#f87171';
+        }
         appendUploadLog(`>>> Error: ${err.message}`, 'error');
+        if (err.message && (err.message.includes('fetch') || err.message.includes('Failed to fetch'))) {
+            appendUploadLog('Backend compile service is currently offline.', 'warning');
+            appendUploadLog('Tip: Use the "Download .ino" button below to open and upload directly via Arduino IDE.', 'info');
+        }
         if (err.output) {
             appendUploadLog(`Details:\n${err.output}`, 'error');
         }
-        showToast('error', 'Upload failed! Check logs for details.');
+        if (btnRetry) btnRetry.style.display = 'inline-flex';
+        showToast('error', currentLang === 'mr' ? 'आर्डुइनो अपलोड अयशस्वी! तपशीलांसाठी लॉग तपासा.' : 'Arduino upload failed! Check logs for details.');
     } finally {
-        actions.style.display = 'flex';
-        closeBtn.style.display = 'block';
+        if (actions) actions.style.display = 'flex';
+        if (closeBtn) closeBtn.style.display = 'block';
     }
 }
+
+// Backwards compatibility alias
+const uploadToESP32 = uploadToArduino;
 
 // ==========================================
 // Simulation Mode
@@ -2133,72 +2469,125 @@ function stopAnimatedSimulation() {
  */
 function switchLanguage(lang) {
     currentLang = lang;
-    
-    // Update global language variable that blocks use
     window.currentLang = lang;
-    
-    // Update AI Studio language if function exists
-    if (typeof aiSetLanguage === 'function') {
-        aiSetLanguage(lang);
-    }
 
-    // Update toggle button states
-    document.getElementById('langEn').classList.toggle('lang-toggle__btn--active', lang === 'en');
-    document.getElementById('langMr').classList.toggle('lang-toggle__btn--active', lang === 'mr');
+    // Update toggle buttons active state
+    const btnEn = document.getElementById('langEn');
+    const btnMr = document.getElementById('langMr');
+    if (btnEn) btnEn.classList.toggle('lang-toggle__btn--active', lang === 'en');
+    if (btnMr) btnMr.classList.toggle('lang-toggle__btn--active', lang === 'mr');
 
-    // ==========================================
-    // Full UI Translation Dictionary
-    // ==========================================
-    const UI_TEXT = {
-        en: {
-            // Header buttons
-            new: 'New', save: 'Save', open: 'Open',
-            run: 'Run', upload: 'Upload', simulate: 'Simulate', code: 'Code',
-            aiStudioBtn: 'AI Studio',
-        },
-        mr: {
-            new: 'नवीन', save: 'सेव्ह करा', open: 'घडा',
-            run: 'चालवा', upload: 'अपलोड', simulate: 'सिम्युलेशन', code: 'कोड',
-            aiStudioBtn: 'AI स्टुडिओ',
+    const isMr = lang === 'mr';
+
+    // 1. Header Buttons
+    const updateBtn = (id, enText, mrText) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        const span = btn.querySelector('span:not(.btn__icon)');
+        if (span) {
+            span.textContent = isMr ? mrText : enText;
         }
     };
 
-    const text = UI_TEXT[lang] || UI_TEXT['en'];
+    updateBtn('btnRun', 'Verify', 'तपासा');
+    updateBtn('btnUpload', 'Upload', 'अपलोड');
+    updateBtn('btnSerialMonitor', 'Serial Monitor', 'सिरियल मॉनिटर');
+    updateBtn('btnSimulate', 'Simulator', 'सिम्युलेटर');
+    updateBtn('btnNew', 'New', 'नवीन');
+    updateBtn('btnOpen', 'Open', 'उघडा');
+    updateBtn('btnSave', 'Save', 'सेव्ह');
+    updateBtn('btnExamples', 'Examples', 'उदाहरणे');
 
-    // Update button texts
-    document.getElementById('btnNew').innerHTML = `<span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span> ${text.new}`;
-    document.getElementById('btnSave').innerHTML = `<span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></span> ${text.save}`;
-    document.getElementById('btnOpen').innerHTML = `<span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span> ${text.open}`;
-    document.getElementById('btnRun').innerHTML = `<span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></span> ${text.run}`;
-    document.getElementById('btnUpload').innerHTML = `<span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span> ${text.upload}`;
-    document.getElementById('btnSimulate').innerHTML = `<span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span> ${text.simulate}`;
-    document.getElementById('btnToggleCode').innerHTML = `<span class="btn__icon">{ }</span> ${text.code}`;
-    document.getElementById('btnAIStudio').innerHTML = `<span class="btn__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 0-5 5v2a5 5 0 0 0 10 0V7a5 5 0 0 0-5-5z"/><path d="M12 14a5 5 0 0 0-5 5v2a5 5 0 0 0 10 0v-2a5 5 0 0 0-5-5z"/><path d="M7 7h10"/><path d="M7 17h10"/></svg></span> ${text.aiStudioBtn}`;
+    const btnToggleCode = document.getElementById('btnToggleCode');
+    if (btnToggleCode) {
+        btnToggleCode.innerHTML = `<span class="btn__icon">{ }</span> ${isMr ? 'कोड' : 'Code'}`;
+    }
 
-    // ==========================================
-    // Toolbox Category Translations
-    // ==========================================
+    // 2. Code Panel & Editor UI
+    const codePanelTitle = document.getElementById('codePanelTitle');
+    if (codePanelTitle) codePanelTitle.textContent = isMr ? 'आर्डुइनो C++ (.ino)' : 'Arduino C++ (.ino)';
+
+    const btnManualCodeText = document.getElementById('btnManualCodeText');
+    if (btnManualCodeText) btnManualCodeText.textContent = isMr ? 'मॅन्युअल' : 'Manual';
+
+    const btnImportCodeText = document.getElementById('btnImportCodeText');
+    if (btnImportCodeText) btnImportCodeText.textContent = isMr ? 'इम्पोर्ट' : 'Import';
+
+    const btnCopyCodeText = document.getElementById('btnCopyCodeText');
+    if (btnCopyCodeText) btnCopyCodeText.textContent = isMr ? 'कॉपी' : 'Copy';
+
+    const btnDownloadCodeText = document.getElementById('btnDownloadCodeText');
+    if (btnDownloadCodeText) btnDownloadCodeText.textContent = isMr ? 'डाउनलोड .ino' : 'Download .ino';
+
+    const manualCodeHint = document.getElementById('manualCodeHint');
+    if (manualCodeHint) {
+        manualCodeHint.textContent = isMr
+            ? 'मॅन्युअल मोड सुरू: थेट संपादन सक्षम. सिंक्रोनाइझ करण्यासाठी ब्लॉक्सवर क्लिक करा.'
+            : 'Manual Mode Active: Direct editing enabled. Click Generate Blocks to synchronize.';
+    }
+
+    const codeOutput = document.getElementById('codeOutput');
+    if (codeOutput) {
+        codeOutput.placeholder = isMr
+            ? '// तयार केलेला आर्डुइनो C++ कोड येथे दिसेल...\n// कोड तयार करण्यासाठी वर्कस्पेसमध्ये ब्लॉक्स जोडा.'
+            : '// Generated Arduino C++ code will appear here...\n// Add blocks to the workspace to generate code.';
+    }
+
+    // 3. Search Bar
+    const blockSearchInput = document.getElementById('blockSearchInput');
+    if (blockSearchInput) {
+        blockSearchInput.placeholder = isMr ? 'आर्डुइनो ब्लॉक्स शोधा...' : 'Search Arduino blocks...';
+    }
+
+    // 4. Status Bar & Console
+    const statusText = document.getElementById('statusText');
+    if (statusText) statusText.textContent = isMr ? 'तयार' : 'Ready';
+
+    const boardInfo = document.getElementById('boardInfo');
+    if (boardInfo) boardInfo.textContent = isMr ? 'बोर्ड: आर्डुइनो युनो' : 'Board: Arduino Uno';
+
+    const btnClearConsole = document.getElementById('btnClearConsole');
+    if (btnClearConsole) btnClearConsole.textContent = isMr ? 'साफ करा' : 'Clear';
+
+    // 5. Upload Modal text
+    const uploadModalTitleText = document.getElementById('uploadModalTitleText');
+    if (uploadModalTitleText) {
+        uploadModalTitleText.textContent = isMr ? 'ESPD अपलोड पाइपलाइन' : 'ESPD Upload Pipeline';
+    }
+    const btnUploadClose = document.getElementById('btnUploadClose');
+    if (btnUploadClose) btnUploadClose.textContent = isMr ? 'बंद करा' : 'Close';
+
+    const btnUploadDownloadIno = document.getElementById('btnUploadDownloadIno');
+    if (btnUploadDownloadIno) {
+        const span = btnUploadDownloadIno.querySelector('span');
+        if (span) span.textContent = isMr ? 'डाउनलोड .ino' : 'Download .ino';
+    }
+    const btnUploadRetry = document.getElementById('btnUploadRetry');
+    if (btnUploadRetry) {
+        const span = btnUploadRetry.querySelector('span');
+        if (span) span.textContent = isMr ? 'पुन्हा प्रयत्न' : 'Retry';
+    }
+
+    const stepGenerate = document.querySelector('#step-generate .upload-step__label');
+    if (stepGenerate) stepGenerate.textContent = isMr ? 'तयार करा' : 'Generate';
+    const stepPrepare = document.querySelector('#step-prepare .upload-step__label');
+    if (stepPrepare) stepPrepare.textContent = isMr ? 'स्केच' : 'Prepare';
+    const stepCompile = document.querySelector('#step-compile .upload-step__label');
+    if (stepCompile) stepCompile.textContent = isMr ? 'कंपाइल' : 'Compile';
+    const stepUpload = document.querySelector('#step-upload .upload-step__label');
+    if (stepUpload) stepUpload.textContent = isMr ? 'फ्लॅश' : 'Flash';
+    const stepVerify = document.querySelector('#step-verify .upload-step__label');
+    if (stepVerify) stepVerify.textContent = isMr ? 'पडताळणी' : 'Verify';
+
+    // 6. Toolbox Category Translations
     const CATEGORY_TRANSLATIONS = {
         en: {
-            'AI Camera': 'AI Camera',
-            'Hand Gesture': 'Hand Gesture',
-            'Body Pose': 'Body Pose',
-            'Face': 'Face',
-            'Speech': 'Speech',
-            'AI Control': 'AI Control',
-            'Basic': 'Basic',
             'Control': 'Control',
             'GPIO': 'GPIO',
-            'ESP32 / Arduino': 'ESP32 / Arduino',
             'Servo Motor': 'Servo Motor',
             'Ultrasonic Sensor': 'Ultrasonic Sensor',
             'IR Sensor': 'IR Sensor',
-            'Buzzer': 'Buzzer',
-            'Relay': 'Relay',
-            'DC Motor': 'DC Motor',
             'DHT Sensor': 'DHT Sensor',
-            'Touch Sensor': 'Touch Sensor',
-            'LCD Display': 'LCD Display',
             'Soil Moisture': 'Soil Moisture',
             'Sound Sensor': 'Sound Sensor',
             'IR Receiver': 'IR Receiver',
@@ -2206,32 +2595,22 @@ function switchLanguage(lang) {
             'Rotary Encoder': 'Rotary Encoder',
             'Push Button': 'Push Button',
             'Electromagnet': 'Electromagnet',
-            'WiFi': 'WiFi',
+            'Buzzer': 'Buzzer',
+            'Relay': 'Relay',
+            'DC Motor': 'DC Motor',
+            'LCD Display': 'LCD Display',
             'Logic': 'Logic',
             'Loops': 'Loops',
             'Variables': 'Variables',
             'Math': 'Math',
         },
         mr: {
-            'AI Camera': 'AI कॅमेरा',
-            'Hand Gesture': 'हाताचा हावभाव',
-            'Body Pose': 'शरीर पोझ',
-            'Face': 'चेहरा',
-            'Speech': 'आवाज',
-            'AI Control': 'AI नियंत्रण',
-            'Basic': 'मूलभूत',
             'Control': 'नियंत्रण',
             'GPIO': 'GPIO',
-            'ESP32 / Arduino': 'ESP32 / Arduino',
             'Servo Motor': 'सर्वो मोटर',
             'Ultrasonic Sensor': 'अल्ट्रासोनिक सेन्सर',
             'IR Sensor': 'IR सेन्सर',
-            'Buzzer': 'बझर',
-            'Relay': 'रिले',
-            'DC Motor': 'DC मोटर',
             'DHT Sensor': 'DHT सेन्सर',
-            'Touch Sensor': 'टच सेन्सर',
-            'LCD Display': 'LCD डिस्प्ले',
             'Soil Moisture': 'माती ओलावा',
             'Sound Sensor': 'ध्वनी सेन्सर',
             'IR Receiver': 'IR रिसीव्हर',
@@ -2239,7 +2618,10 @@ function switchLanguage(lang) {
             'Rotary Encoder': 'रोटरी एनकोडर',
             'Push Button': 'पुश बटन',
             'Electromagnet': 'इलेक्ट्रोमॅग्नेट',
-            'WiFi': 'WiFi',
+            'Buzzer': 'बझर',
+            'Relay': 'रिले',
+            'DC Motor': 'DC मोटर',
+            'LCD Display': 'LCD डिस्प्ले',
             'Logic': 'लॉजिक',
             'Loops': 'लूप्स',
             'Variables': 'व्हेरिएबल्स',
@@ -2247,44 +2629,43 @@ function switchLanguage(lang) {
         }
     };
 
-    // Update toolbox category names
-    // KEY FIX: store original English name in data-original-name on first call,
-    // then always translate FROM the original English name, not the already-translated name.
     const toolboxXml = document.getElementById('toolbox');
-    const categories = toolboxXml.getElementsByTagName('category');
-    const translations = CATEGORY_TRANSLATIONS[lang] || CATEGORY_TRANSLATIONS['en'];
-    
-    for (let i = 0; i < categories.length; i++) {
-        const cat = categories[i];
-        // Store original English name on first translation call
-        if (!cat.dataset.originalName) {
-            cat.dataset.originalName = cat.getAttribute('name');
+    if (toolboxXml) {
+        const categories = toolboxXml.getElementsByTagName('category');
+        const translations = CATEGORY_TRANSLATIONS[lang] || CATEGORY_TRANSLATIONS['en'];
+        
+        for (let i = 0; i < categories.length; i++) {
+            const cat = categories[i];
+            if (!cat.dataset.originalName) {
+                cat.dataset.originalName = cat.getAttribute('name');
+            }
+            const originalName = cat.dataset.originalName;
+            const translated = translations[originalName];
+            if (translated) {
+                cat.setAttribute('name', translated);
+            } else {
+                cat.setAttribute('name', originalName);
+            }
         }
-        const originalName = cat.dataset.originalName;
-        const translated = translations[originalName];
-        if (translated) {
-            cat.setAttribute('name', translated);
-        } else {
-            // No translation key? Keep the original English name.
-            cat.setAttribute('name', originalName);
-        }
+        workspace.updateToolbox(toolboxXml);
     }
-    
-    // Update workspace toolbox to apply changes
-    workspace.updateToolbox(toolboxXml);
 
-    // Save workspace, clear it, and reload to force block recreation with new language
+    // 7. Save workspace, clear, and reload to re-run init() on all blocks with new language
     _disableCentering = true;
     const xml = Blockly.Xml.workspaceToDom(workspace);
     workspace.clear();
     Blockly.Xml.domToWorkspace(xml, workspace);
     _disableCentering = false;
-    
-    // Regenerate code with new language
+
+    // 8. Re-apply category colors & re-measure search bar
+    applyCategoryColors();
+    setTimeout(applyCategoryColors, 100);
+    setTimeout(applyCategoryColors, 300);
+    setTimeout(matchSearchBarWidth, 200);
+
+    // 9. Update code and line numbers
     generateCode();
-    
-    // Re-match search bar to potentially resized toolbox
-    setTimeout(matchSearchBarWidth, 300);
+    updateCodeLineNumbers();
 }
 
 /**
@@ -2523,581 +2904,9 @@ function handleKeyboard(event) {
 // End of script.js
 
 // ==========================================
-// AI Studio Initialization
+// Arduino IDE Block Coding Runtime
 // ==========================================
 
-// ---- AI Block Runtime State ----
-/** Tracks which AI gesture/action blocks have been recently triggered to avoid spam */
-let _aiBlockCooldowns = {};
-/** Minimum ms between repeated triggers of the same block (prevents rapid re-fire from video frames) */
-const AI_BLOCK_COOLDOWN_MS = 2000;
-/** Whether the AI Block Runtime is active */
-let _aiBlockRuntimeActive = false;
-
-/**
- * Initialize AI Studio integration
- * Sets up event listeners for AI-to-block communication
- * AND the runtime engine that executes workspace blocks on AI events
- */
-function initAIStudio() {
-    // Register AI event listeners that can trigger block actions
-    if (typeof aiOnEvent === 'function') {
-        // Listen for AI predictions and update status bar
-        aiOnEvent('prediction', (result) => {
-            const statusText = document.getElementById('aiStatusText');
-            if (statusText) {
-                statusText.textContent = `AI: ${result.className} (${Math.round(result.confidence * 100)}%)`;
-            }
-            // Execute ai_when_detected blocks
-            aiBlockRuntime_onPrediction(result);
-        });
-
-        // Listen for hand gestures → EXECUTE matching blocks
-        aiOnEvent('hand_gesture', (data) => {
-            const statusText = document.getElementById('aiStatusText');
-            if (statusText) {
-                statusText.textContent = `AI: ${data.gesture}`;
-            }
-            // ★ Execute blocks connected inside ai_when_hand
-            aiBlockRuntime_onHandGesture(data);
-        });
-
-        // Listen for pose detection → EXECUTE matching blocks
-        aiOnEvent('pose_detected', (data) => {
-            const statusText = document.getElementById('aiStatusText');
-            if (statusText) {
-                statusText.textContent = `AI: ${data.pose}`;
-            }
-            aiBlockRuntime_onPose(data);
-        });
-
-        // Listen for face detection → EXECUTE matching blocks
-        aiOnEvent('face_detected', (data) => {
-            const statusText = document.getElementById('aiStatusText');
-            if (statusText) {
-                statusText.textContent = `AI: ${data.expression}`;
-            }
-            aiBlockRuntime_onFace(data);
-        });
-
-        // Listen for speech commands → EXECUTE matching blocks
-        aiOnEvent('speech_command', (data) => {
-            const statusText = document.getElementById('aiStatusText');
-            if (statusText) {
-                statusText.textContent = `AI: Voice "${data.command}"`;
-            }
-            aiBlockRuntime_onSpeech(data);
-        });
-    }
-
-    _aiBlockRuntimeActive = true;
-    logToConsole('info', 'AI Studio module loaded');
-    logToConsole('info', 'AI → Block runtime engine active');
-}
-
-// ==========================================
-// AI Block Runtime Engine
-// ==========================================
-// This engine bridges AI Studio detection events to the Blockly workspace.
-// When the AI detects a hand gesture (or pose, face, speech), the engine
-// scans the workspace for matching event blocks (e.g. ai_when_hand)
-// and executes the child blocks connected inside them (buzzer, LED, etc.).
-
-/**
- * Check if a block action is on cooldown
- * @param {string} blockId - Unique block ID
- * @returns {boolean} true if still cooling down
- */
-function _aiBlockOnCooldown(blockId) {
-    const now = Date.now();
-    if (_aiBlockCooldowns[blockId] && (now - _aiBlockCooldowns[blockId]) < AI_BLOCK_COOLDOWN_MS) {
-        return true;
-    }
-    _aiBlockCooldowns[blockId] = now;
-    return false;
-}
-
-/**
- * Normalize gesture name for comparison.
- * Strips emojis, extra whitespace, converts to lowercase.
- */
-function _normalizeGesture(str) {
-    if (!str) return '';
-    return str
-        .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}]/gu, '')
-        .replace(/[✋✊☝️👍🙌🤸💃🧍🙂👈👉]/g, '')
-        .trim()
-        .toLowerCase();
-}
-
-/**
- * Map dropdown values from ai_when_hand block to gesture labels
- */
-function _gestureDropdownMatches(dropdownValue, detectedGesture) {
-    if (dropdownValue === 'any') return true;
-    const normalizedDetected = _normalizeGesture(detectedGesture);
-    const mapping = {
-        'open_hand': ['open hand', 'उघडा हात'],
-        'closed_fist': ['closed fist', 'मूठ बंद'],
-        'pointing_up': ['pointing up', 'वर बोट'],
-        'thumb_up': ['thumb up', 'अंगठा वर'],
-    };
-    const matchTerms = mapping[dropdownValue] || [dropdownValue];
-    return matchTerms.some(term => normalizedDetected.includes(term.toLowerCase()));
-}
-
-/**
- * Map dropdown values from ai_when_pose block to pose labels
- */
-function _poseDropdownMatches(dropdownValue, detectedPose) {
-    if (dropdownValue === 'any') return true;
-    const normalizedPose = _normalizeGesture(detectedPose);
-    const mapping = {
-        'hands_raised': ['hands raised', 'हात वर'],
-        'arms_wide': ['arms wide', 'हात पसरलेले'],
-        'hand_raised': ['hand raised', 'हात वर'],
-        'active_movement': ['active movement', 'सक्रिय हालचाल'],
-        'standing_still': ['standing still', 'स्थिर उभे'],
-    };
-    const matchTerms = mapping[dropdownValue] || [dropdownValue];
-    return matchTerms.some(term => normalizedPose.includes(term.toLowerCase()));
-}
-
-/**
- * Map dropdown values from ai_when_face block to expression labels
- */
-function _faceDropdownMatches(dropdownValue, detectedExpression) {
-    if (dropdownValue === 'any') return true;
-    const normalizedExpr = _normalizeGesture(detectedExpression);
-    const mapping = {
-        'face_forward': ['face forward', 'चेहरा समोर'],
-        'looking_left': ['looking left', 'डावीकडे पाहत'],
-        'looking_right': ['looking right', 'उजवीकडे पाहत'],
-        'head_up': ['head up', 'डोके वर'],
-        'head_down': ['head down', 'डोके खाली'],
-        'smiling': ['smiling', 'smile', 'हसणे'],
-    };
-    const matchTerms = mapping[dropdownValue] || [dropdownValue];
-    return matchTerms.some(term => normalizedExpr.includes(term.toLowerCase()));
-}
-
-// ---- Hand Gesture → Block Execution ----
-function aiBlockRuntime_onHandGesture(data) {
-    if (!workspace || !_aiBlockRuntimeActive) return;
-    const allBlocks = workspace.getAllBlocks(true);
-    const handBlocks = allBlocks.filter(b => b.type === 'ai_when_hand');
-
-    handBlocks.forEach(block => {
-        const gesture = block.getFieldValue('GESTURE');
-        if (_gestureDropdownMatches(gesture, data.gesture)) {
-            if (_aiBlockOnCooldown(block.id)) return;
-            logToConsole('success', `Hand gesture "${data.gesture}" → executing block actions`);
-            _executeChildBlocks(block, 'DO');
-        }
-    });
-
-    // Also execute ai_control_device blocks that listen for hand gestures
-    _executeAIControlBlocks(allBlocks, data.gesture);
-}
-
-// ---- Pose → Block Execution ----
-function aiBlockRuntime_onPose(data) {
-    if (!workspace || !_aiBlockRuntimeActive) return;
-    const allBlocks = workspace.getAllBlocks(true);
-    const poseBlocks = allBlocks.filter(b => b.type === 'ai_when_pose');
-
-    poseBlocks.forEach(block => {
-        const pose = block.getFieldValue('POSE');
-        if (_poseDropdownMatches(pose, data.pose)) {
-            if (_aiBlockOnCooldown(block.id)) return;
-            logToConsole('success', `Pose "${data.pose}" → executing block actions`);
-            _executeChildBlocks(block, 'DO');
-        }
-    });
-}
-
-// ---- Face → Block Execution ----
-function aiBlockRuntime_onFace(data) {
-    if (!workspace || !_aiBlockRuntimeActive) return;
-    const allBlocks = workspace.getAllBlocks(true);
-    const faceBlocks = allBlocks.filter(b => b.type === 'ai_when_face');
-
-    faceBlocks.forEach(block => {
-        const expr = block.getFieldValue('EXPRESSION');
-        if (_faceDropdownMatches(expr, data.expression)) {
-            if (_aiBlockOnCooldown(block.id)) return;
-            logToConsole('success', `Face "${data.expression}" → executing block actions`);
-            _executeChildBlocks(block, 'DO');
-        }
-    });
-}
-
-// ---- Speech → Block Execution ----
-function aiBlockRuntime_onSpeech(data) {
-    if (!workspace || !_aiBlockRuntimeActive) return;
-    const allBlocks = workspace.getAllBlocks(true);
-    const speechBlocks = allBlocks.filter(b => b.type === 'ai_when_speech');
-
-    speechBlocks.forEach(block => {
-        const command = (block.getFieldValue('COMMAND') || '').toLowerCase();
-        if (data.command && data.command.includes(command)) {
-            if (_aiBlockOnCooldown(block.id)) return;
-            logToConsole('success', `Voice "${data.command}" → executing block actions`);
-            _executeChildBlocks(block, 'DO');
-        }
-    });
-}
-
-// ---- Camera AI Prediction → Block Execution ----
-function aiBlockRuntime_onPrediction(result) {
-    if (!workspace || !_aiBlockRuntimeActive) return;
-    const allBlocks = workspace.getAllBlocks(true);
-    const predBlocks = allBlocks.filter(b => b.type === 'ai_when_detected');
-
-    predBlocks.forEach(block => {
-        const className = (block.getFieldValue('CLASS_NAME') || '').toLowerCase();
-        if (result.className && result.className.toLowerCase().includes(className) && result.confidence >= 0.6) {
-            if (_aiBlockOnCooldown(block.id)) return;
-            logToConsole('success', `AI detected "${result.className}" → executing block actions`);
-            _executeChildBlocks(block, 'DO');
-        }
-    });
-}
-
-/**
- * Execute ai_control_device / ai_control_servo / ai_control_motor blocks
- * These blocks have a TRIGGER field that matches against detected classes/gestures
- */
-function _executeAIControlBlocks(allBlocks, triggerLabel) {
-    const normalizedTrigger = _normalizeGesture(triggerLabel);
-
-    allBlocks.forEach(block => {
-        const trigger = (block.getFieldValue('TRIGGER') || '').toLowerCase();
-        if (!trigger) return;
-
-        // Check if the trigger matches (partial match)
-        if (!normalizedTrigger.includes(trigger) && !trigger.includes(normalizedTrigger)) return;
-        if (_aiBlockOnCooldown(block.id + '_ctrl')) return;
-
-        switch (block.type) {
-            case 'ai_control_device': {
-                const pin = block.getFieldValue('PIN');
-                const state = block.getFieldValue('STATE');
-                const isHigh = state === 'HIGH';
-                logToConsole('success', `AI Control → Pin ${pin} ${state}`);
-                _executeHardwareAction({ action: 'digital_write', pin, state: isHigh });
-                break;
-            }
-            case 'ai_control_servo': {
-                const pin = block.getFieldValue('PIN');
-                const angle = block.getFieldValue('ANGLE');
-                logToConsole('success', `AI Control → Servo Pin ${pin} Angle ${angle}°`);
-                _executeHardwareAction({ action: 'servo', pin, angle });
-                break;
-            }
-            case 'ai_control_motor': {
-                const dir = block.getFieldValue('DIRECTION');
-                logToConsole('success', `AI Control → Motor ${dir}`);
-                break;
-            }
-        }
-    });
-}
-
-/**
- * Walk the chain of child blocks within a statement input and execute each one.
- * This is the core block interpreter for AI-triggered actions.
- * @param {Blockly.Block} parentBlock - The event block (e.g. ai_when_hand)
- * @param {string} inputName - The statement input name (e.g. 'DO')
- */
-function _executeChildBlocks(parentBlock, inputName) {
-    let block = parentBlock.getInputTargetBlock(inputName);
-    const actionQueue = [];
-
-    // Collect all actions first
-    while (block) {
-        const action = _blockToAction(block);
-        if (action) actionQueue.push(action);
-        block = block.getNextBlock();
-    }
-
-    if (actionQueue.length === 0) {
-        logToConsole('warning', 'No action blocks connected inside the AI event block');
-        return;
-    }
-
-    // Execute actions sequentially with delays
-    _executeActionQueue(actionQueue, 0);
-}
-
-/**
- * Convert a Blockly block into an executable action descriptor
- */
-function _blockToAction(block) {
-    switch (block.type) {
-        // ---- Buzzer blocks ----
-        case 'buzzer_on':
-            return { action: 'buzzer_on', pin: block.getFieldValue('PIN') };
-        case 'buzzer_off':
-        case 'buzzer_notone':
-            return { action: 'buzzer_off', pin: block.getFieldValue('PIN') };
-        case 'buzzer_tone':
-            return {
-                action: 'buzzer_tone',
-                pin: block.getFieldValue('PIN'),
-                freq: parseInt(block.getFieldValue('FREQ')) || 1000,
-                dur: parseInt(block.getFieldValue('DUR')) || 500,
-            };
-        case 'buzzer_note':
-            return {
-                action: 'buzzer_tone',
-                pin: block.getFieldValue('PIN'),
-                freq: parseInt(block.getFieldValue('NOTE')) || 440,
-                dur: parseInt(block.getFieldValue('DUR')) || 300,
-            };
-
-        // ---- LED blocks ----
-        case 'led_on':
-            return { action: 'led_on', pin: block.getFieldValue('PIN') };
-        case 'led_off':
-            return { action: 'led_off', pin: block.getFieldValue('PIN') };
-        case 'led_blink':
-            return { action: 'led_blink', pin: block.getFieldValue('PIN'), delay: parseInt(block.getFieldValue('DELAY')) || 500 };
-
-        // ---- Digital Write ----
-        case 'digital_write':
-            return { action: 'digital_write', pin: block.getFieldValue('PIN'), state: block.getFieldValue('STATE') === 'HIGH' };
-
-        // ---- Servo ----
-        case 'servo_control':
-            return { action: 'servo', pin: block.getFieldValue('PIN'), angle: parseInt(block.getFieldValue('ANGLE')) || 90 };
-
-        // ---- Delay ----
-        case 'delay_ms':
-            return { action: 'delay', ms: parseInt(block.getFieldValue('MS')) || 1000 };
-
-        // ---- Relay ----
-        case 'relay_on':
-            return { action: 'relay_on', pin: block.getFieldValue('PIN') };
-        case 'relay_off':
-            return { action: 'relay_off', pin: block.getFieldValue('PIN') };
-
-        // ---- Motor ----
-        case 'motor_forward':
-            return { action: 'motor_forward', in1: block.getFieldValue('IN1'), speed: block.getFieldValue('SPEED') };
-        case 'motor_backward':
-            return { action: 'motor_backward', in1: block.getFieldValue('IN1'), speed: block.getFieldValue('SPEED') };
-        case 'motor_stop':
-            return { action: 'motor_stop', in1: block.getFieldValue('IN1') };
-
-        // ---- Serial Print ----
-        case 'serial_print':
-            return { action: 'serial_print' };
-
-        // ---- AI Print Result ----
-        case 'ai_print_result':
-            return { action: 'ai_print_result' };
-
-        default:
-            logToConsole('info', `  Block "${block.type}" skipped (no runtime handler)`);
-            return null;
-    }
-}
-
-/**
- * Execute a queue of actions sequentially, respecting delays
- */
-function _executeActionQueue(queue, index) {
-    if (index >= queue.length) return;
-
-    const action = queue[index];
-    let nextDelay = 50; // Default small gap between actions
-
-    switch (action.action) {
-        case 'buzzer_on':
-            logToConsole('info', `  Buzzer ON (Pin ${action.pin}) — sending to ESP32 hardware`);
-            // NO Mac speaker sound — hardware only!
-            _sendToESP32('buzzer_on', action);
-            break;
-
-        case 'buzzer_off':
-            logToConsole('info', `  Buzzer OFF (Pin ${action.pin}) — sending to ESP32 hardware`);
-            // NO Mac speaker sound — hardware only!
-            _sendToESP32('buzzer_off', action);
-            break;
-
-        case 'buzzer_tone':
-            logToConsole('info', `  Buzzer Tone ${action.freq}Hz for ${action.dur}ms (Pin ${action.pin}) — sending to ESP32 hardware`);
-            // NO Mac speaker sound — hardware only!
-            _sendToESP32('buzzer_tone', action);
-            nextDelay = action.dur + 50;
-            break;
-
-        case 'led_on':
-            logToConsole('info', `  LED ON (Pin ${action.pin})`);
-            _updateSimLED(action.pin, true);
-            _sendToESP32('led_on', action);
-            break;
-
-        case 'led_off':
-            logToConsole('info', `  LED OFF (Pin ${action.pin})`);
-            _updateSimLED(action.pin, false);
-            _sendToESP32('led_off', action);
-            break;
-
-        case 'led_blink':
-            logToConsole('info', `  LED Blink (Pin ${action.pin}, ${action.delay}ms)`);
-            _updateSimLED(action.pin, true);
-            setTimeout(() => _updateSimLED(action.pin, false), action.delay);
-            _sendToESP32('led_blink', action);
-            nextDelay = action.delay * 2 + 50;
-            break;
-
-        case 'digital_write':
-            logToConsole('info', `  Pin ${action.pin} → ${action.state ? 'HIGH' : 'LOW'}`);
-            _updateSimLED(action.pin, action.state);
-            _sendToESP32('digital_write', action);
-            break;
-
-        case 'servo':
-            logToConsole('info', `  Servo (Pin ${action.pin}) → ${action.angle}°`);
-            _updateSimServo(action.angle);
-            _sendToESP32('servo', action);
-            break;
-
-        case 'delay':
-            logToConsole('info', `  Delay ${action.ms}ms`);
-            nextDelay = Math.min(action.ms, 3000);
-            break;
-
-        case 'relay_on':
-            logToConsole('info', `  Relay ON (Pin ${action.pin})`);
-            _sendToESP32('relay_on', action);
-            break;
-
-        case 'relay_off':
-            logToConsole('info', `  Relay OFF (Pin ${action.pin})`);
-            _sendToESP32('relay_off', action);
-            break;
-
-        case 'motor_forward':
-            logToConsole('info', `  Motor Forward (Speed ${action.speed})`);
-            _sendToESP32('motor_forward', action);
-            break;
-
-        case 'motor_backward':
-            logToConsole('info', `  Motor Backward (Speed ${action.speed})`);
-            _sendToESP32('motor_backward', action);
-            break;
-
-        case 'motor_stop':
-            logToConsole('info', `  Motor Stop`);
-            _sendToESP32('motor_stop', action);
-            break;
-
-        case 'serial_print':
-        case 'ai_print_result':
-            logToConsole('info', `  AI result printed to serial`);
-            break;
-    }
-
-    // Execute next action after delay
-    if (index + 1 < queue.length) {
-        setTimeout(() => _executeActionQueue(queue, index + 1), nextDelay);
-    }
-}
-
-/**
- * Update simulation LED in the UI (if simulation is open)
- */
-function _updateSimLED(pin, isOn) {
-    const ledEls = document.querySelectorAll('.sim-led__label');
-    ledEls.forEach(el => {
-        if (el.textContent.includes(`Pin ${pin}`)) {
-            const light = el.parentElement.querySelector('.sim-led__light');
-            if (light) {
-                light.classList.toggle('sim-led__light--on', isOn);
-            }
-        }
-    });
-}
-
-/**
- * Update simulation servo in the UI (if simulation is open)
- */
-function _updateSimServo(angle) {
-    const needle = document.getElementById('simServoNeedle');
-    const angleLabel = document.getElementById('simServoAngle');
-    if (needle) {
-        needle.style.transition = 'transform 0.5s ease';
-        needle.style.transform = `translateX(-50%) rotate(${angle - 90}deg)`;
-    }
-    if (angleLabel) {
-        angleLabel.textContent = angle;
-    }
-}
-
-/**
- * Send a hardware command to ESP32 via the Flask backend.
- * This generates a small MicroPython snippet and sends it.
- * Only sends if the backend is reachable.
- * @param {string} command - Command type
- * @param {object} params - Parameters
- */
-async function _sendToESP32(command, params) {
-    // Build a MicroPython snippet for the command
-    let code = '';
-    switch (command) {
-        case 'buzzer_on':
-            code = `from machine import Pin, PWM\nbzr = PWM(Pin(${params.pin}))\nbzr.freq(1000)\nbzr.duty(512)\n`;
-            break;
-        case 'buzzer_off':
-            code = `from machine import Pin, PWM\nbzr = PWM(Pin(${params.pin}))\nbzr.duty(0)\nbzr.deinit()\n`;
-            break;
-        case 'buzzer_tone':
-            code = `from machine import Pin, PWM\nimport time\nbzr = PWM(Pin(${params.pin}))\nbzr.freq(${params.freq})\nbzr.duty(512)\ntime.sleep_ms(${params.dur})\nbzr.duty(0)\nbzr.deinit()\n`;
-            break;
-        case 'led_on':
-            code = `from machine import Pin\nPin(${params.pin}, Pin.OUT).value(1)\n`;
-            break;
-        case 'led_off':
-            code = `from machine import Pin\nPin(${params.pin}, Pin.OUT).value(0)\n`;
-            break;
-        case 'digital_write':
-            code = `from machine import Pin\nPin(${params.pin}, Pin.OUT).value(${params.state ? 1 : 0})\n`;
-            break;
-        case 'servo': {
-            const duty = Math.round(26 + (params.angle / 180) * 102);
-            code = `from machine import Pin, PWM\nservo = PWM(Pin(${params.pin}), freq=50)\nservo.duty(${duty})\n`;
-            break;
-        }
-        default:
-            return; // Skip unknown commands
-    }
-
-    if (!code) return;
-
-    try {
-        const response = await fetch('http://localhost:5001/execute', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code }),
-        });
-        if (response.ok) {
-            const result = await response.json();
-            if (result.success) {
-                logToConsole('success', `  ESP32: ${command} executed on hardware!`);
-            }
-        }
-    } catch (e) {
-        // Backend not available — simulation only, no error needed
-    }
-}
-
-/**
- * Expose the runtime state for global access
- */
-window._aiBlockRuntimeActive = _aiBlockRuntimeActive;
 
 // ==========================================
 // Manual Coding Mode
@@ -3755,16 +3564,16 @@ function loadLineFollowerBlocks() {
         readLeft.render();
         ifLeft.getInput('CONDITION').connection.connect(readLeft.outputConnection);
 
-        // Turn Left: run Right motor (PORT5), stop Left motor (PORT4)
+        // Turn Left: run Right motor (MOTOR2), stop Left motor (MOTOR1)
         const turnLeftMotorRight = workspace.newBlock('motor_forward');
-        turnLeftMotorRight.setFieldValue('PORT5', 'PORT');
+        turnLeftMotorRight.setFieldValue('MOTOR2', 'PORT');
         turnLeftMotorRight.setFieldValue(200, 'SPEED');
         turnLeftMotorRight.initSvg();
         turnLeftMotorRight.render();
         ifLeft.getInput('DO').connection.connect(turnLeftMotorRight.previousConnection);
 
         const turnLeftMotorStop = workspace.newBlock('motor_stop');
-        turnLeftMotorStop.setFieldValue('PORT4', 'PORT');
+        turnLeftMotorStop.setFieldValue('MOTOR1', 'PORT');
         turnLeftMotorStop.initSvg();
         turnLeftMotorStop.render();
         turnLeftMotorRight.nextConnection.connect(turnLeftMotorStop.previousConnection);
@@ -3782,16 +3591,16 @@ function loadLineFollowerBlocks() {
         readRight.render();
         ifRight.getInput('CONDITION').connection.connect(readRight.outputConnection);
 
-        // Turn Right: run Left motor (PORT4), stop Right motor (PORT5)
+        // Turn Right: run Left motor (MOTOR1), stop Right motor (MOTOR2)
         const turnRightMotorLeft = workspace.newBlock('motor_forward');
-        turnRightMotorLeft.setFieldValue('PORT4', 'PORT');
+        turnRightMotorLeft.setFieldValue('MOTOR1', 'PORT');
         turnRightMotorLeft.setFieldValue(200, 'SPEED');
         turnRightMotorLeft.initSvg();
         turnRightMotorLeft.render();
         ifRight.getInput('DO').connection.connect(turnRightMotorLeft.previousConnection);
 
         const turnRightMotorStop = workspace.newBlock('motor_stop');
-        turnRightMotorStop.setFieldValue('PORT5', 'PORT');
+        turnRightMotorStop.setFieldValue('MOTOR2', 'PORT');
         turnRightMotorStop.initSvg();
         turnRightMotorStop.render();
         turnRightMotorLeft.nextConnection.connect(turnRightMotorStop.previousConnection);
@@ -3799,14 +3608,14 @@ function loadLineFollowerBlocks() {
         // ── else → Go Forward (both motors on) ───────────────────────
         // Nest forward blocks inside the ELSE of ifRight
         const motorLeftFwd = workspace.newBlock('motor_forward');
-        motorLeftFwd.setFieldValue('PORT4', 'PORT');
+        motorLeftFwd.setFieldValue('MOTOR1', 'PORT');
         motorLeftFwd.setFieldValue(200, 'SPEED');
         motorLeftFwd.initSvg();
         motorLeftFwd.render();
         ifRight.getInput('ELSE').connection.connect(motorLeftFwd.previousConnection);
 
         const motorRightFwd = workspace.newBlock('motor_forward');
-        motorRightFwd.setFieldValue('PORT5', 'PORT');
+        motorRightFwd.setFieldValue('MOTOR2', 'PORT');
         motorRightFwd.setFieldValue(200, 'SPEED');
         motorRightFwd.initSvg();
         motorRightFwd.render();

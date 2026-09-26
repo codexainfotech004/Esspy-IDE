@@ -29,31 +29,25 @@ const arduinoGenerator = new Blockly.Generator('Arduino');
 
 // Board-aware helpers
 function _isUno() {
-    const sel = document.getElementById('boardTypeSelect');
-    return sel && sel.value === 'arduino:avr:uno';
+    return true;
 }
 
 function _portPins(port) {
-    const table = _isUno() ? {
-        "PORT1": { pwm: "3", dir: "2" },
-        "PORT2": { pwm: "5", dir: "4" },
-        "PORT3": { pwm: "6", dir: "7" },
-        "PORT4": { pwm: "9", dir: "8" },
-        "PORT5": { pwm: "10", dir: "12" },
-        "PORT6": { pwm: "11", dir: "13" },
-        "PORT7": { pwm: "3", dir: "A0" },
-        "PORT8": { pwm: "5", dir: "A1" }
-    } : {
-        "PORT1": { pwm: "8", dir: "7" },
-        "PORT2": { pwm: "2", dir: "15" },
-        "PORT3": { pwm: "4", dir: "0" },
-        "PORT4": { pwm: "27", dir: "14" },
-        "PORT5": { pwm: "25", dir: "26" },
-        "PORT6": { pwm: "33", dir: "32" },
-        "PORT7": { pwm: "13", dir: "12" },
-        "PORT8": { pwm: "10", dir: "9" }
+    const table = {
+        "MOTOR1": { pwm: "3", dir: "2", label: "Motor 1 (Pins D3, D2)" },
+        "MOTOR2": { pwm: "5", dir: "4", label: "Motor 2 (Pins D5, D4)" },
+        "MOTOR3": { pwm: "6", dir: "7", label: "Motor 3 (Pins D6, D7)" },
+        "MOTOR4": { pwm: "9", dir: "8", label: "Motor 4 (Pins D9, D8)" },
+        "PORT1": { pwm: "3", dir: "2", label: "Motor 1 (Pins D3, D2)" },
+        "PORT2": { pwm: "5", dir: "4", label: "Motor 2 (Pins D5, D4)" },
+        "PORT3": { pwm: "6", dir: "7", label: "Motor 3 (Pins D6, D7)" },
+        "PORT4": { pwm: "9", dir: "8", label: "Motor 4 (Pins D9, D8)" },
+        "PORT5": { pwm: "10", dir: "12", label: "Motor M1 (Pins D10, D12)" },
+        "PORT6": { pwm: "11", dir: "13", label: "Motor M2 (Pins D11, D13)" },
+        "PORT7": { pwm: "3", dir: "A0", label: "Motor A (Pins D3, A0)" },
+        "PORT8": { pwm: "5", dir: "A1", label: "Motor B (Pins D5, A1)" }
     };
-    return table[port] || table["PORT1"];
+    return table[port] || table["MOTOR1"];
 }
 
 // Operator precedence levels
@@ -89,6 +83,97 @@ arduinoGenerator.init = function (workspace) {
     this.nameDB_.setVariableMap(workspace.getVariableMap());
 };
 
+arduinoGenerator.workspaceToCode = function (workspace) {
+    if (!workspace) return '';
+    this.init(workspace);
+
+    const topBlocks = workspace.getTopBlocks(true);
+    const startBlocks = topBlocks.filter(b => b.type === 'start_program');
+    const otherTopBlocks = topBlocks.filter(b => b.type !== 'start_program' && !b.outputConnection);
+
+    let code = '';
+
+    if (startBlocks.length > 0) {
+        // Generate main start_program block
+        code = this.blockToCode(startBlocks[0]);
+
+        // If there are other loose/disconnected top-level blocks on the workspace:
+        // Do NOT emit them at global C++ scope (which causes compilation errors).
+        // Safely integrate them inside void loop()
+        if (otherTopBlocks.length > 0) {
+            let looseCode = '';
+            for (let i = 0; i < otherTopBlocks.length; i++) {
+                const blockCode = this.blockToCode(otherTopBlocks[i]);
+                if (blockCode && typeof blockCode === 'string') {
+                    looseCode += blockCode;
+                }
+            }
+            if (looseCode.trim()) {
+                const loopIndex = code.lastIndexOf('void loop() {');
+                if (loopIndex !== -1) {
+                    const beforeLoop = code.substring(0, loopIndex + 'void loop() {\n'.length);
+                    const afterLoop = code.substring(loopIndex + 'void loop() {\n'.length);
+                    const indentedLoose = looseCode.trim().split('\n').map(l => '  ' + l).join('\n') + '\n';
+                    code = beforeLoop + '  // [Loose Blocks on Workspace]\n' + indentedLoose + afterLoop;
+                }
+            }
+        }
+    } else {
+        // NO start_program block on the workspace!
+        // Collect all blocks on the workspace
+        let rawCode = '';
+        for (let i = 0; i < topBlocks.length; i++) {
+            let blockCode = this.blockToCode(topBlocks[i]);
+            if (Array.isArray(blockCode)) blockCode = blockCode[0];
+            if (blockCode && typeof blockCode === 'string') {
+                rawCode += blockCode;
+            }
+        }
+
+        // Collect auto-generated setup code (e.g. servo attachments, pinModes)
+        let autoSetup = '';
+        for (let key in this.setupCode_) {
+            autoSetup += '  ' + this.setupCode_[key] + '\n';
+        }
+
+        // Distribute statements: pinMode, Serial.begin into setup(); others into loop()
+        const lines = rawCode.trim().split('\n').filter(l => l.trim().length > 0);
+        let setupLines = [];
+        let loopLines = [];
+
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('pinMode') || trimmed.startsWith('Serial.begin')) {
+                if (!setupLines.includes('  ' + trimmed)) {
+                    setupLines.push('  ' + trimmed);
+                }
+            } else {
+                loopLines.push('  ' + trimmed);
+            }
+        });
+
+        code = '// === Auto-Generated Arduino Setup ===\n';
+        code += 'void setup() {\n';
+        code += '  Serial.begin(9600);  // Initialize Serial Monitor\n';
+        if (autoSetup) code += autoSetup;
+        if (setupLines.length > 0) {
+            code += setupLines.join('\n') + '\n';
+        }
+        code += '}\n\n';
+
+        code += '// === Auto-Generated Arduino Loop ===\n';
+        code += 'void loop() {\n';
+        if (loopLines.length > 0) {
+            code += loopLines.join('\n') + '\n';
+        } else {
+            code += '  // Workspace blocks will run here\n';
+        }
+        code += '}\n';
+    }
+
+    return this.finish(code);
+};
+
 arduinoGenerator.finish = function (code) {
     // Collect includes
     let includeCode = '';
@@ -106,6 +191,13 @@ arduinoGenerator.finish = function (code) {
     let funcCode = '';
     for (let key in this.functions_) {
         funcCode += this.functions_[key] + '\n';
+    }
+
+    // Guardrail: Ensure valid Arduino structure
+    if (!code.includes('void setup(') || !code.includes('void loop(')) {
+        let setupPart = 'void setup() {\n  Serial.begin(9600);\n}\n\n';
+        let loopPart = 'void loop() {\n' + (code ? code.split('\n').map(l => '  ' + l).join('\n') : '') + '\n}\n';
+        code = setupPart + loopPart;
     }
 
     let finalCode = '';
@@ -255,7 +347,7 @@ arduinoGenerator.forBlock['servo_control'] = function (block, generator) {
     const angle = block.getFieldValue('ANGLE');
     const servoVar = `servo_pin${pin}`;
 
-    generator.includes_['servo'] = _isUno() ? '#include <Servo.h>' : '#include <ESP32Servo.h>';
+    generator.includes_['servo'] = '#include <Servo.h>';
     generator.variables_[servoVar] = `Servo ${servoVar};`;
 
     // Attach servo in setup (only once)
@@ -272,7 +364,7 @@ arduinoGenerator.forBlock['servo_sweep'] = function (block, generator) {
     const speed = block.getFieldValue('SPEED');
     const servoVar = `servo_pin${pin}`;
 
-    generator.includes_['servo'] = _isUno() ? '#include <Servo.h>' : '#include <ESP32Servo.h>';
+    generator.includes_['servo'] = '#include <Servo.h>';
     generator.variables_[servoVar] = `Servo ${servoVar};`;
 
     let code = `${servoVar}.attach(${pin});\n`;
@@ -295,7 +387,7 @@ arduinoGenerator.forBlock['servo_attach'] = function (block, generator) {
     const pin = block.getFieldValue('PIN');
     const servoVar = `servo_pin${pin}`;
 
-    generator.includes_['servo'] = _isUno() ? '#include <Servo.h>' : '#include <ESP32Servo.h>';
+    generator.includes_['servo'] = '#include <Servo.h>';
     generator.variables_[servoVar] = `Servo ${servoVar};`;
 
     return `${servoVar}.attach(${pin});  // Attach servo to pin ${pin}\n`;
@@ -305,7 +397,7 @@ arduinoGenerator.forBlock['servo_detach'] = function (block, generator) {
     const pin = block.getFieldValue('PIN');
     const servoVar = `servo_pin${pin}`;
 
-    generator.includes_['servo'] = _isUno() ? '#include <Servo.h>' : '#include <ESP32Servo.h>';
+    generator.includes_['servo'] = '#include <Servo.h>';
     generator.variables_[servoVar] = `Servo ${servoVar};`;
 
     return `${servoVar}.detach();  // Detach servo from pin ${pin}\n`;
@@ -489,22 +581,21 @@ arduinoGenerator.forBlock['motor_forward'] = function (block, generator) {
     const port = block.getFieldValue('PORT');
     const speed = block.getFieldValue('SPEED');
     const pins = _portPins(port);
+    const label = pins.label || port;
     const isUno = _isUno();
 
     // Pin setup — emitted only once into setup()
-    // NOTE: ledcAttach must be called before any ledcWrite on the PWM pin
     generator.setupCode_[`motor_${port}_pins`] = (
-        `// Motor ${port} pin setup\n` +
+        `// ${label} setup\n` +
         `pinMode(${pins.pwm}, OUTPUT);\n` +
         `pinMode(${pins.dir}, OUTPUT);\n` +
-        `digitalWrite(${pins.dir}, LOW);\n` +
-        (isUno ? '' : `ledcAttach(${pins.pwm}, 5000, 8); // Attach LEDC PWM\n`)
+        `digitalWrite(${pins.dir}, LOW);\n`
     );
 
     // Direction + speed — emitted at the block location
-    let code = `// Motor Forward on ${port}\n`;
+    let code = `// ${label} Forward\n`;
     code += `digitalWrite(${pins.dir}, HIGH);\n`;
-    code += isUno ? `analogWrite(${pins.pwm}, ${speed});\n` : `ledcWrite(${pins.pwm}, ${speed});\n`;
+    code += `analogWrite(${pins.pwm}, ${speed});\n`;
     return code;
 };
 
@@ -512,41 +603,39 @@ arduinoGenerator.forBlock['motor_backward'] = function (block, generator) {
     const port = block.getFieldValue('PORT');
     const speed = block.getFieldValue('SPEED');
     const pins = _portPins(port);
+    const label = pins.label || port;
     const isUno = _isUno();
 
     // Pin setup — emitted only once into setup()
     generator.setupCode_[`motor_${port}_pins`] = (
-        `// Motor ${port} pin setup\n` +
+        `// ${label} setup\n` +
         `pinMode(${pins.pwm}, OUTPUT);\n` +
         `pinMode(${pins.dir}, OUTPUT);\n` +
-        `digitalWrite(${pins.dir}, LOW);\n` +
-        (isUno ? '' : `ledcAttach(${pins.pwm}, 5000, 8); // Attach LEDC PWM\n`)
+        `digitalWrite(${pins.dir}, LOW);\n`
     );
 
     // Direction + speed — emitted at the block location
-    let code = `// Motor Backward on ${port}\n`;
+    let code = `// ${label} Backward\n`;
     code += `digitalWrite(${pins.dir}, LOW);\n`;
-    code += isUno ? `analogWrite(${pins.pwm}, ${speed});\n` : `ledcWrite(${pins.pwm}, ${speed});\n`;
+    code += `analogWrite(${pins.pwm}, ${speed});\n`;
     return code;
 };
 
 arduinoGenerator.forBlock['motor_stop'] = function (block, generator) {
     const port = block.getFieldValue('PORT');
     const pins = _portPins(port);
-    const isUno = _isUno();
+    const label = pins.label || port;
 
-    // Ensure pin setup is always emitted even if only a stop block is used
     generator.setupCode_[`motor_${port}_pins`] = generator.setupCode_[`motor_${port}_pins`] || (
-        `// Motor ${port} pin setup\n` +
+        `// ${label} setup\n` +
         `pinMode(${pins.pwm}, OUTPUT);\n` +
         `pinMode(${pins.dir}, OUTPUT);\n` +
-        `digitalWrite(${pins.dir}, LOW);\n` +
-        (isUno ? '' : `ledcAttach(${pins.pwm}, 5000, 8); // Attach LEDC PWM\n`)
+        `digitalWrite(${pins.dir}, LOW);\n`
     );
 
-    let code = `// Motor Stop on ${port}\n`;
+    let code = `// ${label} Stop\n`;
     code += `digitalWrite(${pins.dir}, LOW);\n`;
-    code += isUno ? `analogWrite(${pins.pwm}, 0);\n` : `ledcWrite(${pins.pwm}, 0);\n`;
+    code += `analogWrite(${pins.pwm}, 0);\n`;
     return code;
 };
 

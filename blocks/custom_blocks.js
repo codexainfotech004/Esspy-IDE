@@ -37,6 +37,13 @@ const BLOCK_LANG = {
         runOnce: "Run Once",
         breakLoop: "Break",
         continueLoop: "Continue",
+        setup: "Setup",
+        loop: "Loop",
+        do: "do",
+        stopTone: "Stop Tone",
+        map: "Map",
+        in: "in",
+        out: "out",
 
         // GPIO Blocks
         ledOn: "Turn LED On",
@@ -220,6 +227,13 @@ const BLOCK_LANG = {
         runOnce: "एकदा चालवा",
         breakLoop: "थांबा",
         continueLoop: "सुरू ठेवा",
+        setup: "सेटअप (Setup)",
+        loop: "लूप (Loop)",
+        do: "करा",
+        stopTone: "टोन थांबवा",
+        map: "मॅप (Map)",
+        in: "इनपुट",
+        out: "आउटपुट",
 
         // GPIO Blocks
         ledOn: "LED चालू करा",
@@ -479,119 +493,74 @@ const COLORS = {
 };
 
 // ==========================================
-// Blix Board Port to GPIO Mappings
+// Arduino Uno Port to Pin Mappings
 // ==========================================
-const BLIX_PORTS = {
-    "PORT1": { pinA: "8", pinB: "7", label: "Port 1 (GPIO 8/7)" },
-    "PORT2": { pinA: "2", pinB: "15", label: "Port 2 (GPIO 2/15)" },
-    "PORT3": { pinA: "4", pinB: "0", label: "Port 3 (GPIO 4/0)" },
-    "PORT4": { pinA: "27", pinB: "14", label: "Port 4 (GPIO 27/14)" },
-    "PORT5": { pinA: "25", pinB: "26", label: "Port 5 (GPIO 25/26)" },
-    "PORT6": { pinA: "33", pinB: "32", label: "Port 6 (GPIO 33/32)" },
-    "PORT7": { pinA: "13", pinB: "12", label: "Port 7 (GPIO 13/12)" },
-    "PORT8": { pinA: "10", pinB: "9", label: "Port 8 (GPIO 10/9)" }
-};
-
-// UNO Port mappings (PWM = pinA, DIR = pinB)
 const UNO_PORTS = {
-    "PORT1": { pinA: "3", pinB: "2", label: "Port 1 (D3/D2)" },
-    "PORT2": { pinA: "5", pinB: "4", label: "Port 2 (D5/D4)" },
-    "PORT3": { pinA: "6", pinB: "7", label: "Port 3 (D6/D7)" },
-    "PORT4": { pinA: "9", pinB: "8", label: "Port 4 (D9/D8)" },
-    "PORT5": { pinA: "10", pinB: "12", label: "Port 5 (D10/D12)" },
-    "PORT6": { pinA: "11", pinB: "13", label: "Port 6 (D11/D13)" },
-    "PORT7": { pinA: "3", pinB: "A0", label: "Port 7 (D3/A0)" },
-    "PORT8": { pinA: "5", pinB: "A1", label: "Port 8 (D5/A1)" }
+    "MOTOR1": { pinA: "3", pinB: "2", label: "Motor 1 (Pins D3, D2)" },
+    "MOTOR2": { pinA: "5", pinB: "4", label: "Motor 2 (Pins D5, D4)" },
+    "MOTOR3": { pinA: "6", pinB: "7", label: "Motor 3 (Pins D6, D7)" },
+    "MOTOR4": { pinA: "9", pinB: "8", label: "Motor 4 (Pins D9, D8)" },
+    "PORT1": { pinA: "3", pinB: "2", label: "Motor 1 (Pins D3, D2)" },
+    "PORT2": { pinA: "5", pinB: "4", label: "Motor 2 (Pins D5, D4)" },
+    "PORT3": { pinA: "6", pinB: "7", label: "Motor 3 (Pins D6, D7)" },
+    "PORT4": { pinA: "9", pinB: "8", label: "Motor 4 (Pins D9, D8)" },
+    "PORT5": { pinA: "10", pinB: "12", label: "Motor M1 (Pins D10, D12)" },
+    "PORT6": { pinA: "11", pinB: "13", label: "Motor M2 (Pins D11, D13)" },
+    "PORT7": { pinA: "3", pinB: "A0", label: "Motor A (Pins D3, A0)" },
+    "PORT8": { pinA: "5", pinB: "A1", label: "Motor B (Pins D5, A1)" }
 };
 
 function getPortTable(boardFqbn) {
-    return boardFqbn && boardFqbn.startsWith('arduino:avr') ? UNO_PORTS : BLIX_PORTS;
+    return UNO_PORTS;
 }
 
 function getPortDropdown(boardFqbn) {
-    const table = getPortTable(boardFqbn);
-    return Object.entries(table).map(([key, val]) => [val.label, key]);
+    const isMr = window.currentLang === 'mr';
+    return [
+        [isMr ? "मोटर 1 (पिन D3, D2)" : "Motor 1 (Pins D3, D2)", "MOTOR1"],
+        [isMr ? "मोटर 2 (पिन D5, D4)" : "Motor 2 (Pins D5, D4)", "MOTOR2"],
+        [isMr ? "मोटर 3 (पिन D6, D7)" : "Motor 3 (Pins D6, D7)", "MOTOR3"],
+        [isMr ? "मोटर 4 (पिन D9, D8)" : "Motor 4 (Pins D9, D8)", "MOTOR4"],
+        [isMr ? "मोटर M1 (पिन D10, D12)" : "Motor M1 (Pins D10, D12)", "PORT5"],
+        [isMr ? "मोटर M2 (पिन D11, D13)" : "Motor M2 (Pins D11, D13)", "PORT6"]
+    ];
 }
 
 function getPortPins(port, boardFqbn) {
-    const table = getPortTable(boardFqbn);
-    return table[port] || table["PORT1"];
+    return UNO_PORTS[port] || UNO_PORTS["MOTOR1"];
 }
 
 function getCurrentBoardFqbn() {
     const sel = document.getElementById('boardTypeSelect');
-    return sel ? sel.value : 'esp32:esp32:esp32';
+    return sel ? sel.value : 'arduino:avr:uno';
 }
 
 function getDynamicPinDropdown() {
-    const fqbn = getCurrentBoardFqbn();
-    if (fqbn && fqbn.startsWith('arduino:avr')) {
-        return [
-            ["D2", "2"],
-            ["D3", "3"],
-            ["D4", "4"],
-            ["D5", "5"],
-            ["D6", "6"],
-            ["D7", "7"],
-            ["D8", "8"],
-            ["D9", "9"],
-            ["D10", "10"],
-            ["D11", "11"],
-            ["D12", "12"],
-            ["D13", "13"],
-            ["A0", "A0"],
-            ["A1", "A1"],
-            ["A2", "A2"],
-            ["A3", "A3"],
-            ["A4", "A4"],
-            ["A5", "A5"]
-        ];
-    }
+    const isMr = window.currentLang === 'mr';
     return [
-        ["Port 1 - Pin A (GPIO 8)", "8"],
-        ["Port 1 - Pin B (GPIO 7)", "7"],
-        ["Port 2 - Pin A (GPIO 2)", "2"],
-        ["Port 2 - Pin B (GPIO 15)", "15"],
-        ["Port 3 - Pin A (GPIO 4)", "4"],
-        ["Port 3 - Pin B (GPIO 0)", "0"],
-        ["Port 4 - Pin A (GPIO 27)", "27"],
-        ["Port 4 - Pin B (GPIO 14)", "14"],
-        ["Port 5 - Pin A (GPIO 25)", "25"],
-        ["Port 5 - Pin B (GPIO 26)", "26"],
-        ["Port 6 - Pin A (GPIO 33)", "33"],
-        ["Port 6 - Pin B (GPIO 32)", "32"],
-        ["Port 7 - Pin A (GPIO 13)", "13"],
-        ["Port 7 - Pin B (GPIO 12)", "12"],
-        ["Port 8 - Pin A (GPIO 10)", "10"],
-        ["Port 8 - Pin B (GPIO 9)", "9"],
-        ["Built-in LED (GPIO 2)", "2"]
+        ["D2", "2"],
+        ["D3 (~PWM)", "3"],
+        ["D4", "4"],
+        ["D5 (~PWM)", "5"],
+        ["D6 (~PWM)", "6"],
+        ["D7", "7"],
+        ["D8", "8"],
+        ["D9 (~PWM)", "9"],
+        ["D10 (~PWM)", "10"],
+        ["D11 (~PWM)", "11"],
+        ["D12", "12"],
+        [isMr ? "D13 (इनबिल्ट LED)" : "D13 (Built-in LED)", "13"],
+        ["A0", "A0"],
+        ["A1", "A1"],
+        ["A2", "A2"],
+        ["A3", "A3"],
+        ["A4 (SDA)", "A4"],
+        ["A5 (SCL)", "A5"]
     ];
 }
 
 function getDynamicPortDropdown() {
-    const fqbn = getCurrentBoardFqbn();
-    if (fqbn && fqbn.startsWith('arduino:avr')) {
-        return [
-            ["Port 1 (D3/D2)", "PORT1"],
-            ["Port 2 (D5/D4)", "PORT2"],
-            ["Port 3 (D6/D7)", "PORT3"],
-            ["Port 4 (D9/D8)", "PORT4"],
-            ["Port 5 (D10/D12)", "PORT5"],
-            ["Port 6 (D11/D13)", "PORT6"],
-            ["Port 7 (D3/A0)", "PORT7"],
-            ["Port 8 (D5/A1)", "PORT8"]
-        ];
-    }
-    return [
-        ["Port 1 (GPIO 8/7)", "PORT1"],
-        ["Port 2 (GPIO 2/15)", "PORT2"],
-        ["Port 3 (GPIO 4/0)", "PORT3"],
-        ["Port 4 (GPIO 27/14)", "PORT4"],
-        ["Port 5 (GPIO 25/26)", "PORT5"],
-        ["Port 6 (GPIO 33/32)", "PORT6"],
-        ["Port 7 (GPIO 13/12)", "PORT7"],
-        ["Port 8 (GPIO 10/9)", "PORT8"]
-    ];
+    return getPortDropdown();
 }
 
 // ==========================================
@@ -607,9 +576,9 @@ Blockly.Blocks['start_program'] = {
         this.appendDummyInput()
             .appendField(t('start'));
         this.appendStatementInput("SETUP")
-            .appendField("Setup");
+            .appendField(t('setup'));
         this.appendStatementInput("LOOP")
-            .appendField("Loop");
+            .appendField(t('loop'));
         this.setColour(COLORS.start);
         this.setTooltip("Program entry point - Setup runs once, Loop runs continuously");
         this.setHelpUrl("");
@@ -688,7 +657,7 @@ Blockly.Blocks['run_once'] = {
         this.appendDummyInput()
             .appendField(t('runOnce'));
         this.appendStatementInput("DO")
-            .appendField("do");
+            .appendField(t('do'));
         this.setPreviousStatement(true, null);
         this.setNextStatement(true, null);
         this.setColour(COLORS.start);
@@ -1150,7 +1119,7 @@ Blockly.Blocks['buzzer_note'] = {
 Blockly.Blocks['buzzer_notone'] = {
     init: function () {
         this.appendDummyInput()
-            .appendField("Stop Tone")
+            .appendField(t('stopTone'))
             .appendField(t('pin'))
             .appendField(new Blockly.FieldDropdown(getDynamicPinDropdown), "PIN");
         this.setPreviousStatement(true, null);
@@ -1232,7 +1201,7 @@ Blockly.Blocks['motor_forward'] = {
         this.setPreviousStatement(true, null);
         this.setNextStatement(true, null);
         this.setColour(COLORS.motor);
-        this.setTooltip("Spin DC motor forward on selected port");
+        this.setTooltip("Spin DC motor forward on selected motor pins");
     }
 };
 
@@ -1249,7 +1218,7 @@ Blockly.Blocks['motor_backward'] = {
         this.setPreviousStatement(true, null);
         this.setNextStatement(true, null);
         this.setColour(COLORS.motor);
-        this.setTooltip("Spin DC motor backward on selected port");
+        this.setTooltip("Spin DC motor backward on selected motor pins");
     }
 };
 
@@ -1264,7 +1233,7 @@ Blockly.Blocks['motor_stop'] = {
         this.setPreviousStatement(true, null);
         this.setNextStatement(true, null);
         this.setColour(COLORS.motor);
-        this.setTooltip("Stop DC motor on selected port");
+        this.setTooltip("Stop DC motor on selected motor pins");
     }
 };
 
@@ -1951,7 +1920,7 @@ Blockly.Blocks['repeat_times'] = {
             .appendField(new Blockly.FieldNumber(10, 0, 1000), "TIMES")
             .appendField(t('times'));
         this.appendStatementInput("DO")
-            .appendField("do");
+            .appendField(t('do'));
         this.setPreviousStatement(true, null);
         this.setNextStatement(true, null);
         this.setColour(COLORS.loops);
@@ -1967,7 +1936,7 @@ Blockly.Blocks['forever_loop'] = {
         this.appendDummyInput()
             .appendField(t('foreverLoop'));
         this.appendStatementInput("DO")
-            .appendField("do");
+            .appendField(t('do'));
         this.setPreviousStatement(true, null);
         this.setColour(COLORS.loops);
         this.setTooltip("Run blocks forever in a loop");
@@ -1983,7 +1952,7 @@ Blockly.Blocks['while_loop'] = {
             .setCheck("Boolean")
             .appendField(t('whileLoop'));
         this.appendStatementInput("DO")
-            .appendField("do");
+            .appendField(t('do'));
         this.setPreviousStatement(true, null);
         this.setNextStatement(true, null);
         this.setColour(COLORS.loops);
@@ -2006,7 +1975,7 @@ Blockly.Blocks['for_loop'] = {
             .appendField(t('step'))
             .appendField(new Blockly.FieldNumber(1), "STEP");
         this.appendStatementInput("DO")
-            .appendField("do");
+            .appendField(t('do'));
         this.setPreviousStatement(true, null);
         this.setNextStatement(true, null);
         this.setColour(COLORS.loops);
@@ -2102,14 +2071,14 @@ Blockly.Blocks['map_value'] = {
         this.setOutput(true, "Number");
         this.appendValueInput("VALUE")
             .setCheck("Number")
-            .appendField("Map");
+            .appendField(t('map'));
         this.appendDummyInput()
-            .appendField("in")
+            .appendField(t('in'))
             .appendField(new Blockly.FieldNumber(0), "IN_MIN")
             .appendField("~")
             .appendField(new Blockly.FieldNumber(4095), "IN_MAX");
         this.appendDummyInput()
-            .appendField("out")
+            .appendField(t('out'))
             .appendField(new Blockly.FieldNumber(0), "OUT_MIN")
             .appendField("~")
             .appendField(new Blockly.FieldNumber(255), "OUT_MAX");

@@ -1,5 +1,7 @@
 # Build output / installers
 dist/
+release/
+*.exe
 AppSetup/
 AppSetup.zip
 

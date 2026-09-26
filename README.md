@@ -1,213 +1,119 @@
-# BharatBlocks IDE
+# Arduino IDE - Block Coding
 
-A fully offline, drag-and-drop block programming IDE for ESP32 and Arduino Uno with Marathi language support. Built with Google Blockly, HTML/CSS/JS, Python Flask, and Electron.
-
----
-
-## Features
-
-| Feature | Description |
-|---------|-------------|
-| Block Programming | Drag-and-drop visual programming with Google Blockly |
-| ESP32 + Arduino Uno | Code generation and upload for both boards |
-| Real-Time Code Gen | Instant Arduino C++ and MicroPython code as you drag blocks |
-| AI Studio | Camera object recognition, hand gestures, body pose, face detection, speech recognition |
-| Marathi Support | Full Marathi (मराठी) translation for UI and blocks |
-| Serial Monitor | Built-in serial monitor with SSE streaming |
-| Project Management | Save/Load as `.bbp` JSON files |
-| Dark Theme | Professional modern dark UI |
-| Fully Offline | No internet required after initial load |
-| Cross-Platform | Windows, macOS, Linux (Electron desktop app) |
+A clean, modern offline visual block programming environment tailored specifically for **Arduino** (Uno R3, Nano, Mega 2560). Built with Google Blockly, Vanilla HTML/CSS/JavaScript, Python Flask backend, and Electron.
 
 ---
 
-## Project Structure
+## 🏛️ Architecture & System Design
 
 ```
-bharatblocks/
-├── index.html                 # Main HTML entry point
-├── style.css                  # All CSS styles (dark theme)
-├── script.js                  # Main application logic
-├── package.json               # Electron & npm config
-├── README.md                  # This file
+                  ┌──────────────────────────────────────────┐
+                  │       Electron Desktop Shell             │
+                  │       (or Modern Web Browser)            │
+                  └────────────────────┬─────────────────────┘
+                                       │
+        ┌──────────────────────────────┴──────────────────────────────┐
+        ▼                                                             ▼
+┌───────────────────────────────┐             ┌───────────────────────────────┐
+│     Blockly UI Workspace      │             │     Live Arduino C++ Editor   │
+│  (Custom AVR / Uno Blocks)    │──(Realtime)─│   (#include <Servo.h>, setup, │
+│  • Digital/Analog I/O (D2-D13)│             │    loop, 9600 baud, etc.)     │
+│  • Motor, Ultrasonic, Sensors │             └───────────────────────────────┘
+│  • Loops, Math, Logic, Vars   │                             │
+└───────────────┬───────────────┘                             │
+                │                                             │
+                │ (HTTP REST / SSE)                           │
+                ▼                                             ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       Flask Backend Server (Port 5001)                      │
+│                                                                             │
+│  • Board Auto-Detection: Serial ports & Arduino CLI boards                  │
+│  • Compiler & Flasher: `arduino-cli compile` & `arduino-cli upload`         │
+│  • Serial Monitor: Bi-directional SSE stream @ 9600 baud                    │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │
+                                       ▼ (USB / COM Port)
+                        ┌──────────────────────────────┐
+                        │     Arduino Hardware Board   │
+                        │    (Uno R3 / Nano / Mega)    │
+                        └──────────────────────────────┘
+```
+
+---
+
+## 📁 Project Structure
+
+```
+.
+├── index.html                   # Clean, single-page IDE layout (Toolbar, Blockly, Arduino C++ Preview, Console)
+├── style.css                    # Professional dark-theme IDE styling
+├── script.js                    # Core application logic, Blockly workspace initialization, and upload pipeline
+├── package.json                 # Electron desktop wrapper configuration
+├── README.md                    # Project architecture and documentation
 │
 ├── blocks/
-│   └── custom_blocks.js       # Custom Blockly block definitions
+│   └── custom_blocks.js         # Dedicated Arduino hardware blocks (Uno/AVR pinouts D2-D13, A0-A5, Servo, Motors)
 │
 ├── generator/
-│   ├── arduino_generator.js   # Arduino C++ code generator
-│   └── micropython_generator.js # MicroPython code generator
-│
-├── ai/
-│   ├── ai_studio.js           # AI Studio module
-│   └── ai_blocks.js           # AI block definitions
+│   └── arduino_generator.js     # Robust Arduino C++ code generator (setup(), loop(), pin modes, libraries)
 │
 ├── backend/
-│   ├── app.py                 # Python Flask server (port 5001)
-│   └── requirements.txt       # Python dependencies
+│   ├── app.py                   # Lightweight Flask backend communicating with Arduino CLI & serial ports
+│   └── requirements.txt         # Minimal Python dependencies (flask, flask-cors, pyserial)
 │
 ├── electron/
-│   └── main.js                # Electron main process
+│   └── main.js                  # Electron main window lifecycle and native menu
 │
-├── projects/                  # Saved project files (.bbp)
-├── firmware/                  # Pre-built firmware binaries
-└── sketches/                  # Example Arduino sketches
+├── projects/                    # Saved visual block project files (.bbp)
+└── sketches/                    # Temporary sketches generated during compilation
 ```
 
 ---
 
-## Tech Stack
+## ⚡ Features
 
-**Frontend:** Google Blockly v11, HTML5, CSS3, JavaScript (ES6+), TensorFlow.js, MediaPipe, Web Speech API
-
-**Backend:** Python 3.8+, Flask, Flask-CORS, Arduino CLI, PySerial
-
-**Desktop:** Electron 30+, electron-builder
-
-**Supported Boards:** ESP32 Dev Module (`esp32:esp32:esp32`), Arduino Uno R3 (`arduino:avr:uno`)
+- **Pure Arduino Block Coding:** Google Blockly environment mapped to real Arduino pins (Digital pins `D2`–`D13`, Analog pins `A0`–`A5`, standard Arduino Uno motor driver shield ports).
+- **Real-Time Arduino C++ Generation:** Instant, syntax-highlighted Arduino C++ preview in the side panel as blocks are arranged.
+- **One-Click Compile & Upload:** Direct integration with `arduino-cli` to compile sketches and flash them to connected Arduino boards.
+- **Auto Port & Board Detection:** Automatically locates connected Arduino Uno, Nano, or Mega boards across available COM ports.
+- **Integrated Serial Monitor:** Real-time bi-directional serial monitor with timestamping and configurable baud rates (default: `9600` baud).
+- **Offline & Standalone:** Operates entirely locally without internet access or external cloud services.
 
 ---
 
-## Installation & Setup
+## 🚀 Getting Started
 
-### Prerequisites
+### 1. Requirements
+- **Python 3.8+** (for serial communication & Arduino CLI integration)
+- **Node.js 18+** (optional, for Electron desktop runner)
+- **Arduino CLI** (for compiling and flashing hardware)
 
-- **Python 3.8+** — for backend/upload/serial features
-- **Node.js 18+** — for Electron desktop app (optional, browser works without)
-- **Arduino CLI** — for board upload (optional)
-
-### Quick Start (Browser)
-
+### 2. Install Python Dependencies
 ```bash
 pip install -r backend/requirements.txt
-python backend/app.py
 ```
 
-Then open **http://127.0.0.1:5001** in your browser.
+### 3. Run Backend & Frontend
 
-### With Electron Desktop App
+#### Option A: Running in Browser
+Start the local server:
+```bash
+python backend/app.py
+```
+Open **[http://localhost:5001](http://localhost:5001)** in your web browser.
 
+#### Option B: Running as Electron Desktop App
 ```bash
 npm install
 npm start
 ```
 
-### Arduino CLI Setup (for Upload)
-
-```bash
-arduino-cli core update-index
-arduino-cli core install esp32:esp32
-arduino-cli core install arduino:avr
-```
-
 ---
 
-## How to Run
+## 🔌 Supported Arduino Boards
 
-| Method | Command |
-|--------|---------|
-| Browser only (no upload) | Open `index.html` directly |
-| With backend | `python backend/app.py` → http://127.0.0.1:5001 |
-| Desktop app | `npm start` |
-| Windows one-click | Double-click `Run-App.bat` |
-
----
-
-## Block Reference
-
-| Category | Blocks |
-|----------|--------|
-| Control | Start Program, Delay, Run Once, Forever Loop, Repeat, While, For |
-| GPIO | LED On/Off, Digital Write/Read, Analog Write/Read, Pin Mode |
-| Buzzer | Buzzer On/Off, Play Tone, Musical Notes, Stop Tone |
-| DC Motor | Motor Forward/Backward/Stop (port selection) |
-| Servo | Servo Control, Sweep |
-| Sensors | Ultrasonic (HC-SR04), IR Sensor, DHT Temp/Humidity |
-| Display | LCD Setup, Print, Clear |
-| Serial | Serial Print, Println |
-| Logic | If/Else, Comparison, Boolean, AND/OR/NOT |
-| Variables | Set/Get variable |
-| Math | Arithmetic, Random, Functions |
-| AI Events | When Class/Gesture/Pose/Face/Speech Detected |
-| Relay | Relay On/Off/Toggle |
-| WiFi | Connect/Disconnect, HTTP Get/Post |
-
----
-
-## Serial Monitor
-
-1. Connect your board via USB
-2. Click the **Serial Monitor** button in the toolbar
-3. Select the COM port and baud rate (9600 for Uno, 115200 for ESP32)
-4. Click **Connect**
-
----
-
-## Keyboard Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| Ctrl/Cmd + S | Save project |
-| Ctrl/Cmd + O | Open project |
-| Ctrl/Cmd + N | New project |
-| F5 | Generate code |
-| Ctrl/Cmd + Z | Undo |
-| Ctrl/Cmd + Shift + Z | Redo |
-| Delete | Delete selected block |
-
----
-
-## AI Studio
-
-Open AI Studio from the toolbar for:
-
-- **Camera AI** — Train custom object recognition with your webcam
-- **Hand Gestures** — Detect Open Hand, Fist, Pointing, Thumb Up
-- **Body Pose** — Detect Hands Raised, Arms Wide, Movement
-- **Face Detection** — Detect head direction, smile
-- **Speech Recognition** — Voice commands via browser Web Speech API
-
-AI events can trigger block actions in your program.
-
----
-
-## Hardware Connections (Arduino Uno)
-
-| Component | Pins |
-|-----------|------|
-| LED | Anode → D8 (220Ω resistor), Cathode → GND |
-| Active Buzzer | VCC → D9, GND → GND |
-| DC Motor (L298N) | IN1 → D10, IN2 → D12, ENA → 5V (jumper), VCC → 12V ext, GND → common |
-| Servo | Signal → D9, VCC → 5V, GND → GND |
-| HC-SR04 | TRIG → D6, ECHO → D7, VCC → 5V, GND → GND |
-| DHT11/22 | Data → D4, VCC → 5V, GND → GND |
-| IR Sensor | OUT → D2, VCC → 5V, GND → GND |
-| Soil Moisture | AO → A0, VCC → 5V, GND → GND |
-| LCD I2C | SDA → A4, SCL → A5, VCC → 5V, GND → GND |
-
-## Hardware Connections (ESP32)
-
-| Component | Pins |
-|-----------|------|
-| LED | Anode → GPIO 2 (220Ω), Cathode → GND |
-| Active Buzzer | VCC → GPIO 18, GND → GND |
-| DC Motor (L298N) | IN1 → GPIO 25, IN2 → GPIO 26, ENA → 5V |
-| HC-SR04 | TRIG → GPIO 5, ECHO → GPIO 18 |
-
----
-
-## Building Desktop Apps
-
-```bash
-npm run build-win     # Windows (.exe)
-npm run build-mac     # macOS (.dmg)
-npm run build-linux   # Linux (.AppImage)
-```
-
----
-
-## License
-
-MIT License — free to use, modify, and distribute.
-
-Made in India
+| Board | FQBN | Default Baud Rate |
+|---|---|---|
+| **Arduino Uno R3** (Recommended) | `arduino:avr:uno` | 9600 bps |
+| **Arduino Nano** | `arduino:avr:nano` | 9600 bps |
+| **Arduino Mega 2560** | `arduino:avr:mega` | 9600 bps |
